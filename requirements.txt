@@ -1,0 +1,6 @@
+langgraph>=0.0.40
+IPython
+langchain-text-splitters
+ollama
+flask
+PyPDF2

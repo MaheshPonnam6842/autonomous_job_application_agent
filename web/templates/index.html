@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Autonomous Job Application Agent</title>
+  <style>
+    body { font-family: Arial; margin: 40px; }
+    textarea { width: 100%; height: 160px; }
+    button { padding: 10px 16px; margin-top: 10px; }
+    pre { background: #f4f4f4; padding: 12px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<h2>Autonomous Job Application Agent</h2>
+
+<h3>Resume Input</h3>
+<label>
+  <input type="radio" name="resume_mode" value="paste" checked>
+  Paste Resume
+</label>
+<label style="margin-left:20px;">
+  <input type="radio" name="resume_mode" value="upload">
+  Upload Resume (PDF / TXT)
+</label>
+
+<div id="paste_box">
+  <textarea id="resume"></textarea>
+</div>
+
+<div id="upload_box" class="hidden">
+  <input type="file" id="resume_file">
+</div>
+
+<h3>Job Description</h3>
+<textarea id="jd"></textarea>
+
+<br>
+<button onclick="analyze()">Analyze</button>
+<button onclick="rewrite()">Rewrite Resume</button>
+
+<h3>Analysis</h3>
+<pre id="analysis"></pre>
+
+<h3>Rewrite Output</h3>
+<pre id="rewrite_output"></pre>
+
+<script>
+let cachedState = null;
+
+// Toggle resume input
+document.querySelectorAll("input[name='resume_mode']").forEach(r => {
+  r.addEventListener("change", () => {
+    const mode = document.querySelector("input[name='resume_mode']:checked").value;
+    document.getElementById("paste_box").classList.toggle("hidden", mode !== "paste");
+    document.getElementById("upload_box").classList.toggle("hidden", mode !== "upload");
+  });
+});
+
+function disableButtons(disabled) {
+  document.querySelectorAll("button").forEach(b => b.disabled = disabled);
+}
+
+async function analyze() {
+  disableButtons(true);
+
+  const jd = document.getElementById("jd").value;
+  const mode = document.querySelector("input[name='resume_mode']:checked").value;
+
+  let formData = new FormData();
+  formData.append("jd_text", jd);
+  formData.append("mode", mode);
+
+  if (mode === "paste") {
+    formData.append("resume_text", document.getElementById("resume").value);
+  } else {
+    const file = document.getElementById("resume_file").files[0];
+    if (!file) {
+      alert("Upload a resume file");
+      disableButtons(false);
+      return;
+    }
+    formData.append("resume_file", file);
+  }
+
+  const res = await fetch("/analyze", { method: "POST", body: formData });
+  const data = await res.json();
+
+  cachedState = data.__state__;
+  document.getElementById("analysis").textContent =
+    JSON.stringify(data, null, 2);
+
+  disableButtons(false);
+}
+
+async function rewrite() {
+  if (!cachedState) {
+    alert("Run analysis first");
+    return;
+  }
+
+  disableButtons(true);
+  document.getElementById("rewrite_output").textContent = "Rewriting resume...";
+
+  const res = await fetch("/rewrite", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(cachedState)
+  });
+
+  const { job_id } = await res.json();
+
+  const poll = setInterval(async () => {
+    const r = await fetch(`/rewrite/status/${job_id}`);
+    const data = await r.json();
+
+    if (data.status === "done") {
+      clearInterval(poll);
+      document.getElementById("rewrite_output").textContent =
+        data.result.optimized_resume_text;
+      disableButtons(false);
+    }
+
+    if (data.status === "error") {
+      clearInterval(poll);
+      document.getElementById("rewrite_output").textContent =
+        "Rewrite failed.";
+      disableButtons(false);
+    }
+  }, 1500);
+}
+</script>
+
+</body>
+</html>

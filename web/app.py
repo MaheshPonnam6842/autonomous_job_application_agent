@@ -1,0 +1,137 @@
+import os
+import uuid
+from threading import Thread
+from flask import Flask, render_template, request, jsonify
+from werkzeug.utils import secure_filename
+
+from graph.analysis_graph import build_analysis_graph
+from graph.rewrite_graph import build_rewrite_graph
+
+
+# App setup
+
+app = Flask(__name__)
+
+UPLOAD_FOLDER = "uploads"
+ALLOWED_EXTENSIONS = {"txt", "pdf"}
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
+analysis_graph = build_analysis_graph()
+rewrite_graph = build_rewrite_graph()
+
+# In-memory job store (V1)
+JOBS = {}
+
+
+# Helpers
+
+def allowed_file(filename: str) -> bool:
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def read_resume_file(filepath: str) -> str:
+    if filepath.endswith(".txt"):
+        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+            return f.read()
+
+    if filepath.endswith(".pdf"):
+        from PyPDF2 import PdfReader
+        reader = PdfReader(filepath)
+        return "\n".join(page.extract_text() or "" for page in reader.pages)
+
+    return ""
+
+
+
+# Routes
+
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+
+@app.route("/analyze", methods=["POST"])
+def analyze():
+    mode = request.form.get("mode")
+    jd_text = request.form.get("jd_text", "")
+
+    if not jd_text:
+        return jsonify({"error": "Job description required"}), 400
+
+    # Resume input handling
+    if mode == "upload":
+        file = request.files.get("resume_file")
+        if not file or not allowed_file(file.filename):
+            return jsonify({"error": "Invalid resume file"}), 400
+
+        filename = secure_filename(file.filename)
+        path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+        file.save(path)
+        resume_text = read_resume_file(path)
+    else:
+        resume_text = request.form.get("resume_text", "")
+
+    initial_state = {
+        "resume_raw_text": resume_text,
+        "job_description_text": jd_text,
+        "resume_source": mode,
+    }
+
+    final_state = analysis_graph.invoke(initial_state)
+
+    return jsonify({
+        "__state__": final_state,
+        "match_score": final_state.get("match_score"),
+        "missing_skills": final_state.get("missing_skills"),
+        "strong_matches": final_state.get("strong_matches"),
+        "rewrite_required": final_state.get("rewrite_required"),
+    })
+
+
+import uuid
+import threading
+
+JOBS = {}
+
+@app.route("/rewrite", methods=["POST"])
+def rewrite():
+    state = request.json
+    job_id = str(uuid.uuid4())
+
+    JOBS[job_id] = {"status": "running"}
+
+    def run_rewrite():
+        try:
+            print(f"[JOB {job_id}] Rewrite started")
+            result = rewrite_graph.invoke(state)
+
+            JOBS[job_id] = {
+                "status": "done",
+                "result": {
+                    "optimized_resume_text": result.get("optimized_resume_text"),
+                    "outreach_dm_text": result.get("outreach_dm_text"),
+                    "outreach_email_text": result.get("outreach_email_text"),
+                },
+            }
+            print(f"[JOB {job_id}] Rewrite completed")
+
+        except Exception as e:
+            JOBS[job_id] = {"status": "error", "error": str(e)}
+            print(f"[JOB {job_id}] Rewrite failed: {e}")
+
+    threading.Thread(target=run_rewrite, daemon=True).start()
+
+    #  REQUIRED RETURN
+    return {"job_id": job_id}
+
+
+
+@app.route("/rewrite/status/<job_id>")
+def rewrite_status(job_id):
+    return jsonify(JOBS.get(job_id, {"status": "unknown"}))
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
