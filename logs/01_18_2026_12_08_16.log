@@ -1,2 +1,10 @@
 [ 2026-01-18 12:08:16,873 ] 97 werkzeug - WARNING -  * Debugger is active!
 [ 2026-01-18 12:08:16,876 ] 97 werkzeug - INFO -  * Debugger PIN: 643-117-824
+[ 2026-01-18 12:09:02,873 ] 97 werkzeug - INFO - 127.0.0.1 - - [18/Jan/2026 12:09:02] "GET / HTTP/1.1" 200 -
+[ 2026-01-18 12:09:16,805 ] 97 werkzeug - INFO - 127.0.0.1 - - [18/Jan/2026 12:09:16] "POST /analyze HTTP/1.1" 200 -
+[ 2026-01-18 12:09:17,477 ] 97 werkzeug - INFO - 127.0.0.1 - - [18/Jan/2026 12:09:17] "POST /rewrite HTTP/1.1" 200 -
+[ 2026-01-18 12:09:17,500 ] 1025 httpx - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 404 Not Found"
+[ 2026-01-18 12:09:17,523 ] 1025 httpx - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 404 Not Found"
+[ 2026-01-18 12:09:17,533 ] 1025 httpx - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 404 Not Found"
+[ 2026-01-18 12:09:19,300 ] 97 werkzeug - INFO - 127.0.0.1 - - [18/Jan/2026 12:09:19] "GET /rewrite/status/720fdb54-cd41-4bb7-80b5-4257f94f2621 HTTP/1.1" 200 -
+[ 2026-01-18 17:06:46,314 ] 97 werkzeug - INFO -  * Detected change in 'C:\\AgenticAI\\autonomous_job_application_agent\\v_final\\state\\job_application_state.py', reloading
