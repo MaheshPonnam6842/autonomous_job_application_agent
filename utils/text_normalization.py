@@ -1,5 +1,5 @@
 import re
-from typing import Dict, List
+from typing import Any
 
 
 SECTION_HEADERS: Dict[str, List[str]] = {
@@ -203,6 +203,90 @@ def extract_grouped_bullets(section_text: str, default_group: str = "UNKNOWN") -
         groups.pop(default_group, None)
 
     return groups, flat
+def _safe_list(x: Any) -> List[str]:
+    if isinstance(x, list):
+        return [str(i).strip() for i in x if str(i).strip()]
+    return []
+
+
+def _safe_str(x: Any) -> str:
+    return str(x).strip() if x is not None else ""
+
+def _extract_json_block(text: str) -> str:
+    """
+    LLMs sometimes wrap JSON in ```json ...```.
+    This extracts the first JSON object robustly.
+    """
+    if not text:
+        return ""
+
+    # Prefer fenced block
+    m = re.search(r"```json\s*(\{.*?\})\s*```", text, flags=re.DOTALL | re.IGNORECASE)
+    if m:
+        return m.group(1).strip()
+
+    # Otherwise, try first {...} block
+    m = re.search(r"(\{.*\})", text, flags=re.DOTALL)
+    return m.group(1).strip() if m else ""
+
+
+def _split_compound_terms(s: str) -> List[str]:
+    """
+    Split terms like 'networking/communication protocols' or 'python, sql'
+    into atomic tokens without being too aggressive.
+    """
+    s = s.strip()
+    if not s:
+        return []
+
+    # split on common separators
+    parts = re.split(r"\s*(/|,|;|\||&|\+)\s*", s)
+    # re.split keeps separators; filter them out
+    parts = [p for p in parts if p and p not in {"/", ",", ";", "|", "&", "+",}]
+    return [p.strip() for p in parts if p.strip()]
+
+def _clean_list(items: List[str]) -> List[str]:
+    out: List[str] = []
+    for x in items or []:
+        x = str(x).strip().lower()
+        x = re.sub(r"\s+", " ", x)
+        x = re.sub(r"^[^\w]+|[^\w]+$", "", x)  # trim punctuation edges
+        if not x:
+            continue
+
+        # Split compounds into multiple entries
+        atoms = _split_compound_terms(x)
+        if atoms:
+            out.extend(atoms)
+        else:
+            out.append(x)
+
+    # Dedupe preserve order
+    seen = set()
+    final = []
+    for x in out:
+        if x not in seen:
+            final.append(x)
+            seen.add(x)
+    return final
+
+def _priority_dedupe(
+    required: List[str],
+    preferred: List[str],
+    tools_process: List[str],
+    keywords: List[str],
+                        ) -> Tuple[List[str], List[str], List[str], List[str]]:
+    required = _clean_list(required)
+    req_set = set(required)
+
+    preferred = [x for x in _clean_list(preferred) if x not in req_set]
+    pref_set = set(preferred) | req_set
+
+    tools_process = [x for x in _clean_list(tools_process) if x not in pref_set]
+    tool_set = set(tools_process) | pref_set
+
+    keywords = [x for x in _clean_list(keywords) if x not in tool_set]
+    return required, preferred, tools_process, keywords
 
 
 

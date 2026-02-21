@@ -1,6 +1,16 @@
 from typing import TypedDict, List, Dict, Optional
 from typing import TypedDict, List, Dict, Optional
+from typing import TypedDict, List
 
+class SkillProfile(TypedDict, total=False):
+    hard_skills: List[str]     # python, sql, statistics, nlp, ...
+    tools: List[str]           # airflow, docker, mlflow, ...
+    cloud: List[str]           # aws, gcp, azure
+    ml_concepts: List[str]     # classification, llm, rag, time series, ...
+    soft_skills: List[str]     # ownership, communication, stakeholder mgmt, ...
+    domains: List[str]         # finance, healthcare, hr tech, ...
+    certs: List[str]           # aws certified..., etc.
+    keywords: List[str]        # extra ATS keywords
 
 class EducationEntry(TypedDict):
     degree: str            # Bachelor | Master | PhD
@@ -59,7 +69,9 @@ class JobApplicationState(TypedDict, total=False):
     jd_responsibilities: List[str]
     jd_domain: str                      # finance | retail | healthcare
     jd_seniority_level: str             # junior | mid | senior | staff
-
+    jd_clean_text: str
+    jd_tools_process: List[str]
+    jd_keywords: List[str]
     # 6. Skill Intelligence
     resume_skill_profile: SkillProfile
     jd_skill_profile: SkillProfile
