@@ -1,7 +1,7 @@
 """Tests for the iterative rewrite-and-rescore loop (all offline)."""
 
 from v_final.graph.rewrite_graph import build_rewrite_graph
-from v_final.nodes.matching import score_resume_against_jd
+from v_final.nodes.matching import ats_pass_estimate, ats_pass_label, score_resume_against_jd
 from v_final.nodes.rewrite_loop import _is_better, improve_router
 
 _JD_STATE = {
@@ -21,6 +21,22 @@ def test_score_is_bounded_and_monotonic_in_ats():
             assert 0.0 <= s[k] <= 1.0
     assert high["ats_match"] > low["ats_match"]
     assert high["overall"] >= low["overall"]
+    assert high["ats_pass"] >= low["ats_pass"]
+
+
+def test_ats_pass_estimate_penalizes_missing_required():
+    assert ats_pass_estimate(0.8, 0) == 0.8
+    assert ats_pass_estimate(0.8, 1) == 0.64          # 0.8 * 0.8
+    assert ats_pass_estimate(0.8, 2) < ats_pass_estimate(0.8, 1)
+    assert ats_pass_estimate(0.0, 0) == 0.0
+    assert 0.0 <= ats_pass_estimate(1.0, 5) <= 1.0
+
+
+def test_ats_pass_label_buckets():
+    assert "Strong" in ats_pass_label(0.9)
+    assert "Moderate" in ats_pass_label(0.6)
+    assert "Low" in ats_pass_label(0.4)
+    assert "Very low" in ats_pass_label(0.1)
 
 
 # ---- router / best-keeping -------------------------------------------------
@@ -85,6 +101,10 @@ def test_loop_keeps_best_candidate_and_terminates(monkeypatch):
     assert cmp["before"] == 0.2          # 1 of 5 surfaced
     assert cmp["after"] == 0.8           # 4 of 5 surfaced
     assert cmp["after"] > cmp["before"]
+
+    # ATS pass chance is tracked too, and the verdict is exposed
+    assert "ats_pass" in final["rewrite_score_comparison"]
+    assert final["optimized_ats_pass_label"]
 
 
 def test_offline_rewrite_does_not_loop():

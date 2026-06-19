@@ -113,6 +113,9 @@ def rewrite():
                     "outreach_email_text": result.get("outreach_email_text"),
                     "rewrite_score_comparison": result.get("rewrite_score_comparison"),
                     "rewrite_attempts": result.get("rewrite_attempts"),
+                    "optimized_ats_match_score": result.get("optimized_ats_match_score"),
+                    "optimized_ats_pass_score": result.get("optimized_ats_pass_score"),
+                    "optimized_ats_pass_label": result.get("optimized_ats_pass_label"),
                 },
             }
             print(f"[JOB {job_id}] Rewrite completed")

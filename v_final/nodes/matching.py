@@ -82,6 +82,25 @@ def _ats_score(state: JobApplicationState, resume_set: set[str]) -> float:
     return present / len(terms)
 
 
+def ats_pass_estimate(ats: float, missing_required: int) -> float:
+    """Rough probability of clearing an ATS keyword screen.
+
+    Driven by keyword coverage (``ats``), then knocked down ~20% for each missing
+    *required* skill — ATS filters commonly hard-reject when a must-have is absent.
+    """
+    return round(max(0.0, min(1.0, ats * (0.8 ** max(0, missing_required)))), 4)
+
+
+def ats_pass_label(p: float) -> str:
+    if p >= 0.75:
+        return "Strong - likely to pass ATS"
+    if p >= 0.55:
+        return "Moderate - may pass"
+    if p >= 0.35:
+        return "Low - likely filtered"
+    return "Very low - add missing keywords"
+
+
 def score_resume_against_jd(resume_text: str, state: JobApplicationState) -> dict:
     """Score an arbitrary resume text against the JD already parsed into ``state``.
 
@@ -99,13 +118,15 @@ def score_resume_against_jd(resume_text: str, state: JobApplicationState) -> dic
     overall = w_skill * skill_match + w_sem * semantic + w_ats * ats
 
     jd_required = {_canon(s) for s in (state.get("jd_skills_required") or []) if _canon(s)}
+    missing_required = sorted(jd_required - resume_set)
     return {
         "skill_match": round(skill_match, 4),
         "semantic_similarity": round(semantic, 4),
         "ats_match": round(ats, 4),
         "overall": round(overall, 4),
+        "ats_pass": ats_pass_estimate(ats, len(missing_required)),
         "matched_skills": sorted(resume_set & jd_set),
-        "missing_required_skills": sorted(jd_required - resume_set),
+        "missing_required_skills": missing_required,
     }
 
 
@@ -123,17 +144,22 @@ def matching_node(state: JobApplicationState) -> JobApplicationState:
     overall = w_skill * skill_match + w_sem * semantic + w_ats * ats
 
     jd_required = {_canon(s) for s in (state.get("jd_skills_required") or []) if _canon(s)}
+    missing_required = sorted(jd_required - resume_set)
+    ats_pass = ats_pass_estimate(ats, len(missing_required))
 
     state["skill_match_score"] = round(skill_match, 4)
     state["semantic_similarity_score"] = round(semantic, 4)
     state["ats_match_score"] = round(ats, 4)
     state["overall_match_score"] = round(overall, 4)
+    state["ats_pass_score"] = ats_pass
+    state["ats_pass_label"] = ats_pass_label(ats_pass)
     state["score_breakdown"] = {
         "skill_match": round(skill_match, 4),
         "semantic_similarity": round(semantic, 4),
         "ats_match": round(ats, 4),
         "overall": round(overall, 4),
+        "ats_pass": ats_pass,
     }
     state["matched_skills"] = sorted(resume_set & jd_set)
-    state["missing_required_skills"] = sorted(jd_required - resume_set)
+    state["missing_required_skills"] = missing_required
     return state

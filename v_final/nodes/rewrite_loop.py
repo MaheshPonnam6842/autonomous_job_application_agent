@@ -15,11 +15,11 @@ Writes: rewrite_attempts, rewrite_improved, baseline_scores, best_scores,
 from __future__ import annotations
 
 from v_final.config import settings
-from v_final.nodes.matching import score_resume_against_jd
+from v_final.nodes.matching import ats_pass_label, score_resume_against_jd
 from v_final.nodes.skill_extraction import _build_profile, _canon, _flatten, _scan_vocab
 from v_final.state.job_application_state import JobApplicationState
 
-_METRICS = ("skill_match", "semantic_similarity", "ats_match", "overall")
+_METRICS = ("skill_match", "semantic_similarity", "ats_match", "overall", "ats_pass")
 
 
 def _is_better(cand: dict, best: dict | None, target: str, min_gain: float) -> bool:
@@ -83,6 +83,8 @@ def rewrite_loop_node(state: JobApplicationState) -> JobApplicationState:
     state["optimized_semantic_similarity_score"] = best["semantic_similarity"]
     state["optimized_ats_match_score"] = best["ats_match"]
     state["optimized_overall_match_score"] = best["overall"]
+    state["optimized_ats_pass_score"] = best["ats_pass"]
+    state["optimized_ats_pass_label"] = ats_pass_label(best["ats_pass"])
     state["rewrite_score_comparison"] = {
         m: {
             "before": baseline[m],

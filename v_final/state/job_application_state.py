@@ -90,6 +90,8 @@ class JobApplicationState(TypedDict, total=False):
     skill_match_score: float
     ats_match_score: float
     overall_match_score: float
+    ats_pass_score: float               # estimated chance of clearing an ATS screen
+    ats_pass_label: str                 # human verdict for ats_pass_score
     score_breakdown: dict[str, float]
     missing_required_skills: list[str]
     matched_skills: list[str]
@@ -124,6 +126,8 @@ class JobApplicationState(TypedDict, total=False):
     optimized_semantic_similarity_score: float
     optimized_ats_match_score: float
     optimized_overall_match_score: float
+    optimized_ats_pass_score: float
+    optimized_ats_pass_label: str
     rewrite_score_comparison: dict[str, dict[str, float]]  # metric -> {before, after, delta}
 
     # 10. Outreach Outputs

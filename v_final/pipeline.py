@@ -52,6 +52,7 @@ def format_report(state: JobApplicationState) -> str:
         f"  semantic sim    : {sb.get('semantic_similarity', state.get('semantic_similarity_score'))}",
         f"  ats match       : {sb.get('ats_match', state.get('ats_match_score'))}",
         f"  OVERALL         : {state.get('overall_match_score')}",
+        f"  ATS pass chance : {state.get('ats_pass_score')}  ({state.get('ats_pass_label')})",
         "",
         f"Matched skills  : {', '.join(state.get('matched_skills', []) or []) or '(none)'}",
         f"Missing required: {', '.join(state.get('missing_required_skills', []) or []) or '(none)'}",
@@ -66,7 +67,7 @@ def format_report(state: JobApplicationState) -> str:
     cmp = state.get("rewrite_score_comparison")
     if cmp:
         lines += ["", f"REWRITE IMPACT  (best of {state.get('rewrite_attempts', 0)} attempt(s))"]
-        for label, key in [("ATS", "ats_match"), ("overall", "overall"),
+        for label, key in [("ATS", "ats_match"), ("ATS pass", "ats_pass"), ("overall", "overall"),
                            ("skill", "skill_match"), ("semantic", "semantic_similarity")]:
             c = cmp.get(key)
             if c:

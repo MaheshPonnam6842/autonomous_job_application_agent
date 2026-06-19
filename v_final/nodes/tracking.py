@@ -20,7 +20,7 @@ from v_final.state.job_application_state import JobApplicationState
 _SUMMARY_KEYS = (
     "jd_title", "jd_domain", "jd_seniority_level",
     "skill_match_score", "semantic_similarity_score", "ats_match_score",
-    "overall_match_score", "score_breakdown",
+    "overall_match_score", "ats_pass_score", "ats_pass_label", "score_breakdown",
     "matched_skills", "missing_required_skills",
     "skill_gap_hard", "skill_gap_soft",
     "rewrite_required", "rewrite_strategy", "rewrite_reason",
