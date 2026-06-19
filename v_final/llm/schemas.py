@@ -56,3 +56,34 @@ class JDExtraction(BaseModel):
     def _coerce_seniority(cls, v: object) -> str:
         s = (str(v).strip().lower() if v is not None else "unknown")
         return s if s in ALLOWED_SENIORITY else "unknown"
+
+
+class RewrittenExperience(BaseModel):
+    """Rewritten bullets for one experience entry (company/role/dates are NOT
+    sent back by the model — they're preserved verbatim from the parsed entry)."""
+
+    bullets: list[str] = Field(default_factory=list)
+
+    @field_validator("bullets", mode="before")
+    @classmethod
+    def _coerce(cls, v: object) -> list[str]:
+        return _as_str_list(v)
+
+
+class StructuredRewrite(BaseModel):
+    """The model's structured rewrite. Facts (employers/titles/dates/education)
+    are excluded on purpose — only narrative content is regenerated."""
+
+    summary: str = ""
+    skills: list[str] = Field(default_factory=list)
+    experience: list[RewrittenExperience] = Field(default_factory=list)
+
+    @field_validator("summary", mode="before")
+    @classmethod
+    def _coerce_summary(cls, v: object) -> str:
+        return str(v).strip() if v is not None else ""
+
+    @field_validator("skills", mode="before")
+    @classmethod
+    def _coerce_skills(cls, v: object) -> list[str]:
+        return _as_str_list(v)

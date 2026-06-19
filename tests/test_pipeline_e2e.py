@@ -22,9 +22,9 @@ def test_pipeline_runs_offline_and_is_consistent():
     # Core contract is populated
     assert "overall_match_score" in state
     assert "rewrite_required" in state
-    assert state["resume_version"] in {"original", "rewrite_failed_fallback", "rewritten"}
+    assert state["resume_version"] in {"original", "reformatted", "rewritten"}
 
-    # With the LLM disabled, the rewrite must safely fall back to original content
+    # With the LLM disabled, the rewrite still assembles an ATS-clean resume
     assert state["optimized_resume_text"]
 
     # Outreach drafts always produced

@@ -1,6 +1,7 @@
 """Tests for the iterative rewrite-and-rescore loop (all offline)."""
 
 from v_final.graph.rewrite_graph import build_rewrite_graph
+from v_final.llm import RewrittenExperience, StructuredRewrite
 from v_final.nodes.matching import ats_pass_estimate, ats_pass_label, score_resume_against_jd
 from v_final.nodes.rewrite_loop import _is_better, improve_router
 
@@ -57,67 +58,89 @@ def test_router_stops_on_cap_convergence_and_failure():
     assert improve_router({"resume_version": "rewrite_failed_fallback", "rewrite_attempts": 0}) == "done"
 
 
-# ---- full loop with a fake LLM --------------------------------------------
+# ---- full loop with a fake structured-rewrite LLM --------------------------
 
-class _FakeResult:
-    def __init__(self, text):
-        self.ok, self.text, self.error, self.fallback = True, text, None, False
+class _FakeStructuredClient:
+    """Returns StructuredRewrite candidates whose bullets surface rising coverage."""
 
+    def __init__(self, rewrites):
+        self._r, self._i = list(rewrites), 0
 
-class _FakeClient:
-    """Returns a fixed sequence of rewrite candidates with rising keyword coverage."""
-
-    def __init__(self, texts):
-        self._texts, self._i = list(texts), 0
-
-    def chat(self, *args, **kwargs):
-        text = self._texts[min(self._i, len(self._texts) - 1)]
+    def chat_structured(self, system, user, schema, model=None):
+        r = self._r[min(self._i, len(self._r) - 1)]
         self._i += 1
-        return _FakeResult(text)
+        return r
+
+
+def _exp(bullet):
+    return StructuredRewrite(experience=[RewrittenExperience(bullets=[bullet])])
+
+
+_LOOP_INIT = {
+    **_JD_STATE,
+    "rewrite_required": True,
+    "resume_clean_text": "jane doe experienced python developer",  # baseline: only python
+    "resume_raw_text": "Jane Doe",
+    "resume_sections": {"summary": "Python developer."},
+    "resume_skills_structured": {"Skills": ["python"]},            # skills line carries only python
+    "resume_skill_profile": _JD_STATE["jd_skill_profile"],         # resume HAS all (for feedback)
+    "experience_entries": [{"company": "Acme", "role": "Engineer",
+                            "start_date": "2021", "end_date": "Present",
+                            "bullets": ["did python work"]}],
+}
 
 
 def test_loop_keeps_best_candidate_and_terminates(monkeypatch):
-    candidates = ["python sql", "python sql aws docker", "python sql aws docker"]
-    fake = _FakeClient(candidates)
-    monkeypatch.setattr("v_final.nodes.resume_rewrite.get_client", lambda: fake)
+    rewrites = [
+        _exp("Delivered python and sql solutions"),
+        _exp("Delivered python sql aws docker solutions"),
+        _exp("Delivered python sql aws docker solutions"),
+    ]
+    fake = _FakeStructuredClient(rewrites)   # one instance so the index persists across attempts
+    monkeypatch.setattr("v_final.nodes.structured_rewrite.get_client", lambda: fake)
 
-    init = {
-        **_JD_STATE,
-        "rewrite_required": True,
-        "rewrite_strategy": "summary_and_skills",
-        "resume_clean_text": "experienced python developer",   # baseline: only 'python' surfaced
-        "resume_raw_text": "experienced python developer",
-        "resume_skill_profile": _JD_STATE["jd_skill_profile"],  # resume HAS all the skills
-        "missing_required_skills": ["sql", "aws", "docker", "kubernetes"],
-    }
-    final = build_rewrite_graph().invoke(init)
+    final = build_rewrite_graph().invoke(dict(_LOOP_INIT))
 
     assert final["rewrite_attempts"] == 3
     assert len(final["rewrite_candidates"]) == 3
-    # best candidate (highest ATS) is kept as the optimized output
-    assert final["optimized_resume_text"] == "python sql aws docker"
+    # best candidate (more keywords) is kept and assembled into the output + struct
+    assert "aws" in final["optimized_resume_text"] and "docker" in final["optimized_resume_text"]
+    assert final["optimized_resume_struct"]["experience"]
 
     cmp = final["rewrite_score_comparison"]["ats_match"]
-    assert cmp["before"] == 0.2          # 1 of 5 surfaced
-    assert cmp["after"] == 0.8           # 4 of 5 surfaced
+    assert cmp["before"] == 0.2          # 1 of 5 surfaced originally
+    assert cmp["after"] == 0.8           # 4 of 5 surfaced after
     assert cmp["after"] > cmp["before"]
-
-    # ATS pass chance is tracked too, and the verdict is exposed
     assert "ats_pass" in final["rewrite_score_comparison"]
     assert final["optimized_ats_pass_label"]
 
 
-def test_offline_rewrite_does_not_loop():
-    """With the LLM disabled (conftest), the rewrite falls back and the loop is a no-op."""
-    init = {
-        **_JD_STATE,
-        "rewrite_required": True,
-        "rewrite_strategy": "full_rewrite",
-        "resume_clean_text": "python developer",
-        "resume_raw_text": "python developer",
-        "resume_skill_profile": _JD_STATE["jd_skill_profile"],
-    }
-    final = build_rewrite_graph().invoke(init)
-    assert final["resume_version"] == "rewrite_failed_fallback"
+def test_offline_reformats_without_looping():
+    """LLM disabled: structured rewrite assembles an ATS-clean resume, no loop."""
+    final = build_rewrite_graph().invoke(dict(_LOOP_INIT))
+    assert final["resume_version"] == "reformatted"
     assert final.get("rewrite_attempts", 0) == 0
     assert "rewrite_score_comparison" not in final
+    # still produces an assembled doc + struct for export
+    assert "EXPERIENCE" in final["optimized_resume_text"]
+    assert final["optimized_resume_struct"]["experience"]
+
+
+# ---- ATS .docx export ------------------------------------------------------
+
+def test_docx_export_builds_valid_file(tmp_path):
+    from docx import Document
+
+    from v_final.export import build_ats_docx
+    struct = {
+        "header": ["Jane Doe", "jane@example.com"],
+        "summary": "Data scientist with ML experience.",
+        "skills": ["python", "sql"],
+        "experience": [{"company": "Acme", "role": "Data Scientist", "dates": "2021 - Present",
+                        "bullets": [{"text": "Built ML pipelines.", "has_metric": False}]}],
+        "education": ["M.S. Data Science  |  University (2020)"],
+    }
+    out = build_ats_docx(struct, tmp_path / "resume.docx")
+    text = "\n".join(p.text for p in Document(out).paragraphs)
+    assert "Jane Doe" in text
+    assert "EXPERIENCE" in text and "Acme" in text and "Built ML pipelines." in text

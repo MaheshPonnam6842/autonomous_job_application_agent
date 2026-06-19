@@ -15,6 +15,7 @@ dependencies = [
     "pydantic>=2.5",
     "langchain-text-splitters",
     "pypdf",
+    "python-docx",
     "flask",
 ]
 
@@ -39,6 +40,7 @@ packages = [
     "v_final.nodes",
     "v_final.graph",
     "v_final.llm",
+    "v_final.export",
     "utils",
     "src",
 ]

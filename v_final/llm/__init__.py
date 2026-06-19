@@ -6,6 +6,9 @@ and — crucially — graceful degradation when the model server is unavailable.
 """
 
 from v_final.llm.client import LLMResult, OllamaClient, get_client
-from v_final.llm.schemas import JDExtraction
+from v_final.llm.schemas import JDExtraction, RewrittenExperience, StructuredRewrite
 
-__all__ = ["OllamaClient", "LLMResult", "get_client", "JDExtraction"]
+__all__ = [
+    "OllamaClient", "LLMResult", "get_client",
+    "JDExtraction", "StructuredRewrite", "RewrittenExperience",
+]

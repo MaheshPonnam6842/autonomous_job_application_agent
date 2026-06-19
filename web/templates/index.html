@@ -207,9 +207,14 @@
     <section class="card hidden" id="rewriteCard">
       <div class="head-row" style="margin-bottom:14px;">
         <h2 style="margin:0;">Optimized resume</h2>
-        <button class="copybtn" onclick="copyText('resumeOut')">Copy</button>
+        <div style="display:flex; gap:8px;">
+          <button class="copybtn" id="downloadBtn" onclick="downloadDocx()" style="display:none;">⬇ Download .docx</button>
+          <button class="copybtn" onclick="copyText('resumeOut')">Copy</button>
+        </div>
       </div>
       <div id="rewriteStatus" class="status"></div>
+      <div id="metricNote" class="hidden" style="margin:0 0 14px; padding:11px 15px; border-radius:12px; font-size:13.5px; line-height:1.6;
+           background:rgba(252,211,77,0.1); border:1px solid rgba(252,211,77,0.32); color:#fde9a9;"></div>
 
       <div id="impactBlock" class="hidden" style="margin:2px 0 18px;">
         <p class="meta">ATS impact <span id="impactAttempts" style="text-transform:none; letter-spacing:0; color:var(--muted);"></span></p>
@@ -235,6 +240,7 @@
 
 <script>
 let cachedState = null;
+let lastJobId = null;
 const $ = id => document.getElementById(id);
 const pct = x => Math.round((Number(x) || 0) * 100);
 const esc = s => (s ?? "").toString().replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
@@ -368,12 +374,15 @@ async function rewrite(){
   $("resumeOut").classList.add("hidden");
   $("outreachBlock").classList.add("hidden");
   $("impactBlock").classList.add("hidden");
+  $("downloadBtn").style.display = "none";
+  $("metricNote").classList.add("hidden");
   $("rewriteStatus").innerHTML = '<span class="spinner"></span> Generating scoped rewrite and outreach…';
   $("rewriteCard").scrollIntoView({behavior:"smooth", block:"start"});
 
   try{
     const res = await fetch("/rewrite", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(cachedState) });
     const { job_id } = await res.json();
+    lastJobId = job_id;
     const poll = setInterval(async () => {
       const r = await fetch(`/rewrite/status/${job_id}`);
       const d = await r.json();
@@ -383,6 +392,7 @@ async function rewrite(){
         $("resumeOut").textContent = d.result.optimized_resume_text || "(no output)";
         $("resumeOut").classList.remove("hidden");
         renderImpact(d.result);
+        renderDownloadAndMetrics(d.result);
         $("dmOut").textContent = d.result.outreach_dm_text || "";
         $("emailOut").textContent = d.result.outreach_email_text || "";
         $("outreachBlock").classList.remove("hidden");
@@ -420,6 +430,19 @@ function renderImpact(result){
   }).join("");
   $("impactBlock").classList.remove("hidden");
 }
+
+function renderDownloadAndMetrics(result){
+  $("downloadBtn").style.display = result.docx_available ? "" : "none";
+  const need = result.bullets_needing_metric || [];
+  if(need.length){
+    const sample = need.slice(0,3).map(b => "• " + esc(b)).join("<br>");
+    $("metricNote").innerHTML = `<b>${need.length} bullet(s) have no metric.</b> For a complete XYZ bullet, add a number ` +
+      `(%, $, count, time saved). The agent won't invent one. Examples to quantify:<br>${sample}`;
+    $("metricNote").classList.remove("hidden");
+  } else { $("metricNote").classList.add("hidden"); }
+}
+
+function downloadDocx(){ if(lastJobId) window.open("/download/" + lastJobId, "_blank"); }
 
 function finishRewrite(){ setBusy(false); $("rewriteBtn").textContent = "Rewrite & outreach"; }
 

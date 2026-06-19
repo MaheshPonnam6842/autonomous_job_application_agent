@@ -110,8 +110,10 @@ class JobApplicationState(TypedDict, total=False):
     optimized_skills_section: str | None
 
     optimized_resume_text: str
+    optimized_resume_struct: dict        # ATS-safe structured resume for .docx export
+    bullets_needing_metric: list[str]    # rewritten bullets with no number (add one)
     rewrite_diff: list[str] | None
-    resume_version: str                 # original | rewritten | rewrite_failed_fallback
+    resume_version: str                 # original | rewritten | reformatted
     rewrite_error: str | None
 
     # Iterative rewrite loop + before/after scoring

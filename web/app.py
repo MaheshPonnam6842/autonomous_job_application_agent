@@ -2,9 +2,10 @@ import os
 import threading
 import uuid
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_file
 from werkzeug.utils import secure_filename
 
+from v_final.export import build_ats_docx
 from v_final.graph.analysis_graph import build_analysis_graph
 from v_final.graph.rewrite_graph import build_rewrite_graph
 
@@ -13,9 +14,11 @@ from v_final.graph.rewrite_graph import build_rewrite_graph
 app = Flask(__name__)
 
 UPLOAD_FOLDER = "uploads"
+DOWNLOAD_FOLDER = os.path.join("artifacts", "resumes")
 ALLOWED_EXTENSIONS = {"txt", "pdf"}
 MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5 MB upload cap
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
@@ -105,8 +108,19 @@ def rewrite():
         try:
             print(f"[JOB {job_id}] Rewrite started")
             result = rewrite_graph.invoke(state)
+
+            # Build the ATS-safe .docx from the structured resume.
+            docx_path = None
+            struct = result.get("optimized_resume_struct")
+            if struct:
+                try:
+                    docx_path = build_ats_docx(struct, os.path.join(DOWNLOAD_FOLDER, f"resume_{job_id}.docx"))
+                except Exception as ex:  # noqa: BLE001 - docx is a bonus, never fatal
+                    print(f"[JOB {job_id}] docx build failed: {ex}")
+
             JOBS[job_id] = {
                 "status": "done",
+                "docx_path": docx_path,
                 "result": {
                     "optimized_resume_text": result.get("optimized_resume_text"),
                     "outreach_dm_text": result.get("outreach_dm_text"),
@@ -116,9 +130,12 @@ def rewrite():
                     "optimized_ats_match_score": result.get("optimized_ats_match_score"),
                     "optimized_ats_pass_score": result.get("optimized_ats_pass_score"),
                     "optimized_ats_pass_label": result.get("optimized_ats_pass_label"),
+                    "resume_version": result.get("resume_version"),
+                    "bullets_needing_metric": result.get("bullets_needing_metric") or [],
+                    "docx_available": bool(docx_path),
                 },
             }
-            print(f"[JOB {job_id}] Rewrite completed")
+            print(f"[JOB {job_id}] Rewrite completed (docx={bool(docx_path)})")
         except Exception as e:  # noqa: BLE001 - surface failure to the poller
             JOBS[job_id] = {"status": "error", "error": str(e)}
             print(f"[JOB {job_id}] Rewrite failed: {e}")
@@ -129,7 +146,18 @@ def rewrite():
 
 @app.route("/rewrite/status/<job_id>")
 def rewrite_status(job_id):
-    return jsonify(JOBS.get(job_id, {"status": "unknown"}))
+    job = JOBS.get(job_id, {"status": "unknown"})
+    # Don't ship the server-side file path to the client.
+    return jsonify({k: v for k, v in job.items() if k != "docx_path"})
+
+
+@app.route("/download/<job_id>")
+def download(job_id):
+    job = JOBS.get(job_id)
+    path = job.get("docx_path") if job else None
+    if not path or not os.path.exists(path):
+        return jsonify({"error": "No document available for this job"}), 404
+    return send_file(path, as_attachment=True, download_name="resume_ats.docx")
 
 
 if __name__ == "__main__":
