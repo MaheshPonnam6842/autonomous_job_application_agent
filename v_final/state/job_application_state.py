@@ -1,6 +1,7 @@
-from typing import TypedDict, List, Dict, Optional
-from typing import TypedDict, List, Dict, Optional
-from typing import TypedDict, List
+from __future__ import annotations
+
+from typing import Dict, List, Optional, TypedDict
+
 
 class SkillProfile(TypedDict, total=False):
     hard_skills: List[str]     # python, sql, statistics, nlp, ...
@@ -62,8 +63,12 @@ class JobApplicationState(TypedDict, total=False):
 
     experience_groups: Dict[str, List[str]]   # company/role heading -> bullets
     project_groups: Dict[str, List[str]]   
+    experience_bullets_by_group: Dict[str, List[str]]
+    project_bullets_by_group: Dict[str, List[str]]
+    resume_pdf_path: str                # optional path for PDF link extraction
 
     # 5. Job Description Understanding
+    jd_title: str
     jd_skills_required: List[str]
     jd_skills_preferred: List[str]
     jd_responsibilities: List[str]
@@ -84,6 +89,10 @@ class JobApplicationState(TypedDict, total=False):
     semantic_similarity_score: float
     skill_match_score: float
     ats_match_score: float
+    overall_match_score: float
+    score_breakdown: Dict[str, float]
+    missing_required_skills: List[str]
+    matched_skills: List[str]
 
     # 8. Decision & Strategy
     rewrite_required: bool
@@ -100,6 +109,8 @@ class JobApplicationState(TypedDict, total=False):
 
     optimized_resume_text: str
     rewrite_diff: Optional[List[str]]
+    resume_version: str                 # original | rewritten | rewrite_failed_fallback
+    rewrite_error: Optional[str]
 
     # 10. Outreach Outputs
     outreach_dm_text: str
@@ -109,3 +120,5 @@ class JobApplicationState(TypedDict, total=False):
     agent_notes: List[str]
     warnings: List[str]
     rewrite_noop: bool
+    resume_links: List[str]  # extracted from PDF annotations, if available
+    run_artifact_path: str   # where the tracking node saved this run's summary

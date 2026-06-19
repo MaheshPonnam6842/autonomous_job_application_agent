@@ -1,15 +1,15 @@
+from __future__ import annotations
+
 import re
-from typing import Any
+from typing import Any, Dict, List, Tuple
 
-
-SECTION_HEADERS: Dict[str, List[str]] = {
-    "summary": ["summary", "profile"],
+SECTION_HEADERS = {
+    "summary": ["summary", "profile", "professional summary"],
     "skills": ["skills", "technical skills"],
-    "experience": ["experience", "work experience"],
-    "projects": ["projects", "personal projects"],
+    "experience": ["experience", "work experience", "professional experience"],
+    "projects": ["projects", "personal projects", "projects & outside experience"],
     "education": ["education", "academic"],
 }
-
 
 def normalize_text(text: str) -> str:
     """
@@ -123,8 +123,6 @@ def parse_skills(section_text: str) -> Dict[str, List[str]]:
 
     return skills
 
-import re
-from typing import Dict, List, Tuple
 
 _BULLET_RE = re.compile(r"^(\s*[-*•]\s+|\s*\d+[\.\)]\s+)(.+)$")
 

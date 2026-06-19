@@ -4,8 +4,8 @@ from threading import Thread
 from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 
-from graph.analysis_graph import build_analysis_graph
-from graph.rewrite_graph import build_rewrite_graph
+from v_final.graph.analysis_graph import build_analysis_graph
+from v_final.graph.rewrite_graph import build_rewrite_graph
 
 
 # App setup
@@ -83,10 +83,13 @@ def analyze():
 
     return jsonify({
         "__state__": final_state,
-        "match_score": final_state.get("match_score"),
-        "missing_skills": final_state.get("missing_skills"),
-        "strong_matches": final_state.get("strong_matches"),
+        "overall_match_score": final_state.get("overall_match_score"),
+        "score_breakdown": final_state.get("score_breakdown"),
+        "matched_skills": final_state.get("matched_skills"),
+        "missing_required_skills": final_state.get("missing_required_skills"),
         "rewrite_required": final_state.get("rewrite_required"),
+        "rewrite_strategy": final_state.get("rewrite_strategy"),
+        "rewrite_reason": final_state.get("rewrite_reason"),
     })
 
 

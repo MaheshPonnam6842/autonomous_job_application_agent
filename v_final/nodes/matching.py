@@ -1,34 +1,109 @@
+"""Matching Node — composite, explainable fit scoring.
 
-from state.job_application_state import JobApplicationState
+Produces three interpretable sub-scores and a weighted overall score:
+- ``skill_match_score``    : coverage of JD skills by the resume
+- ``semantic_similarity_score`` : embedding cosine of resume vs JD (lexical fallback)
+- ``ats_match_score``      : coverage of required/keyword ATS terms
+
+Reads:  resume_skill_profile, jd_skill_profile, *clean_text, jd_skills_*
+Writes: skill_match_score, semantic_similarity_score, ats_match_score,
+        overall_match_score, score_breakdown, matched_skills, missing_required_skills
+"""
+
+from __future__ import annotations
+
+import math
+import re
+from collections import Counter
+from typing import List, Set
+
+from v_final.config import settings
+from v_final.llm import get_client
+from v_final.nodes.skill_extraction import _canon, _flatten
+from v_final.state.job_application_state import JobApplicationState
+
+_TOKEN_RE = re.compile(r"[a-z0-9+#]+(?:[./-][a-z0-9+#]+)*")
+_STOP = {
+    "the", "and", "for", "with", "you", "are", "our", "that", "this", "will",
+    "have", "has", "your", "from", "into", "their", "they", "but", "not", "all",
+    "can", "who", "may", "out", "use", "via", "per", "etc", "a", "an", "of", "to",
+    "in", "on", "as", "by", "or", "is", "be", "we", "it",
+}
 
 
-def compute_match_score(resume_skills: set, jd_skills: set) -> float:
-    '''
-    Computes a matching score between resume skills and job description skills.
-    '''
-    
-    if not jd_skills:
+def _tokens(text: str) -> List[str]:
+    return [t for t in _TOKEN_RE.findall((text or "").lower()) if len(t) > 1 and t not in _STOP]
+
+
+def _lexical_cosine(a: str, b: str) -> float:
+    ca, cb = Counter(_tokens(a)), Counter(_tokens(b))
+    if not ca or not cb:
         return 0.0
-    matched_skills= resume_skills.intersection(jd_skills)
-    score= len(matched_skills)/ len(jd_skills)
-    return score
+    common = set(ca) & set(cb)
+    dot = sum(ca[t] * cb[t] for t in common)
+    na = math.sqrt(sum(v * v for v in ca.values()))
+    nb = math.sqrt(sum(v * v for v in cb.values()))
+    return dot / (na * nb) if na and nb else 0.0
+
+
+def _vec_cosine(a: List[float], b: List[float]) -> float:
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(y * y for y in b))
+    return dot / (na * nb) if na and nb else 0.0
+
+
+def _semantic_similarity(state: JobApplicationState) -> float:
+    resume = state.get("resume_clean_text") or state.get("resume_raw_text", "")
+    jd = state.get("jd_clean_text") or state.get("job_description_text", "")
+    if not resume.strip() or not jd.strip():
+        return 0.0
+    client = get_client()
+    er, ej = client.embed(resume), client.embed(jd)
+    if er and ej:
+        return max(0.0, _vec_cosine(er, ej))
+    return _lexical_cosine(resume, jd)  # deterministic fallback when embeddings unavailable
+
+
+def _ats_score(state: JobApplicationState, resume_set: Set[str]) -> float:
+    terms: Set[str] = set()
+    for key in ("jd_skills_required", "jd_skills_preferred", "jd_keywords"):
+        for t in state.get(key, []) or []:
+            c = _canon(t)
+            if c:
+                terms.add(c)
+    if not terms:
+        return 0.0
+    present = sum(1 for t in terms if t in resume_set)
+    return present / len(terms)
+
 
 def matching_node(state: JobApplicationState) -> JobApplicationState:
-    '''
-    Matching Node
-    Reads:
-    - resume_skills_extracted
-    - jd_skills_extracted
-    Writes:
-    - match_score
-    - missing_skills
-    - strong_matches
-    '''
-    resume_skills= set(state.get("resume_skills_extracted", []))
-    jd_skills= set(state.get("jd_skills_extracted", []))
-    matched_score= compute_match_score(resume_skills, jd_skills)
-    missing_skills= jd_skills - resume_skills
-    state['match_score']= matched_score
-    state['missing_skills']= sorted(missing_skills)
-    state['strong_matches']= sorted(list(resume_skills.intersection(jd_skills)))
+    resume_set = _flatten(state.get("resume_skill_profile") or {})
+    jd_set = _flatten(state.get("jd_skill_profile") or {})
+
+    skill_match = len(resume_set & jd_set) / len(jd_set) if jd_set else 0.0
+    semantic = _semantic_similarity(state)
+    ats = _ats_score(state, resume_set)
+
+    w_skill, w_sem, w_ats = settings.scoring.normalized
+    overall = w_skill * skill_match + w_sem * semantic + w_ats * ats
+
+    jd_required = {_canon(s) for s in (state.get("jd_skills_required") or []) if _canon(s)}
+    missing_required = sorted(jd_required - resume_set)
+
+    state["skill_match_score"] = round(skill_match, 4)
+    state["semantic_similarity_score"] = round(semantic, 4)
+    state["ats_match_score"] = round(ats, 4)
+    state["overall_match_score"] = round(overall, 4)
+    state["score_breakdown"] = {
+        "skill_match": round(skill_match, 4),
+        "semantic_similarity": round(semantic, 4),
+        "ats_match": round(ats, 4),
+        "overall": round(overall, 4),
+    }
+    state["matched_skills"] = sorted(resume_set & jd_set)
+    state["missing_required_skills"] = missing_required
     return state

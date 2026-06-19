@@ -1,6 +1,14 @@
+# Core
 langgraph>=0.0.40
-IPython
+ollama>=0.3.0
+pydantic>=2.5
 langchain-text-splitters
-ollama
-flask
+
+# Resume/JD I/O
 PyPDF2
+
+# Web UI
+flask
+
+# Dev (optional): pip install -e ".[dev]"
+# pytest, pytest-cov, ruff, mypy
