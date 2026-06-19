@@ -124,6 +124,12 @@
 <div class="wrap">
   <h2 class="sr-only">Resume and job-description fit analyzer with scoped rewrite.</h2>
 
+  <div id="offlineBanner" class="hidden" style="margin:0 0 22px; padding:14px 18px; border-radius:14px;
+       background:rgba(252,211,77,0.12); border:1px solid rgba(252,211,77,0.4); color:#fde9a9; font-size:14px; line-height:1.6;">
+    You're viewing this page as a static file, so it can't reach the backend.
+    Run <code>python web/app.py</code> and open <b>http://localhost:5000</b> to analyze and rewrite.
+  </div>
+
   <header>
     <div class="brand">
       <h1>Autonomous Job Application Agent</h1>
@@ -221,6 +227,10 @@ let cachedState = null;
 const $ = id => document.getElementById(id);
 const pct = x => Math.round((Number(x) || 0) * 100);
 const esc = s => (s ?? "").toString().replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const servedByBackend = () => location.protocol === "http:" || location.protocol === "https:";
+const NOT_SERVED_MSG = "This page isn't served by the backend. Run python web/app.py and open http://localhost:5000.";
+
+if(!servedByBackend()){ $("offlineBanner").classList.remove("hidden"); }
 
 document.querySelectorAll("input[name='resume_mode']").forEach(r => {
   r.addEventListener("change", () => {
@@ -234,6 +244,7 @@ function setBusy(b){ $("analyzeBtn").disabled = b; $("rewriteBtn").disabled = b 
 
 async function analyze(){
   $("inputErr").textContent = "";
+  if(!servedByBackend()){ $("offlineBanner").classList.remove("hidden"); $("inputErr").textContent = NOT_SERVED_MSG; return; }
   const jd = $("jd").value.trim();
   if(!jd){ $("inputErr").textContent = "Add a job description first."; return; }
   const mode = document.querySelector("input[name='resume_mode']:checked").value;
@@ -319,6 +330,7 @@ function render(s){
 
 async function rewrite(){
   if(!cachedState){ return; }
+  if(!servedByBackend()){ $("offlineBanner").classList.remove("hidden"); return; }
   setBusy(true); $("rewriteBtn").innerHTML = '<span class="spinner"></span> Working…';
   $("rewriteCard").classList.remove("hidden");
   $("resumeOut").classList.add("hidden");
