@@ -1,4 +1,4 @@
-from PyPDF2 import PdfReader
+from pypdf import PdfReader
 
 
 def extract_pdf_links(pdf_path: str) -> list[str]:

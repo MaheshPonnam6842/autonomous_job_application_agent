@@ -5,7 +5,7 @@ pydantic>=2.5
 langchain-text-splitters
 
 # Resume/JD I/O
-PyPDF2
+pypdf
 
 # Web UI
 flask

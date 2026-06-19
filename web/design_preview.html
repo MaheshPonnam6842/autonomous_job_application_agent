@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UI Direction Preview — Job Application Agent</title>
+<style>
+  :root { --ink:#e8fbf4; --muted:#9fc8bd; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: "Segoe UI", system-ui, sans-serif; color: var(--ink);
+    background: radial-gradient(1200px 600px at 15% -10%, #0d5a4d 0%, transparent 55%),
+                radial-gradient(1000px 500px at 95% 10%, #0a6f63 0%, transparent 50%),
+                linear-gradient(160deg, #04221d 0%, #062a25 45%, #04140f 100%);
+    min-height: 100vh; padding: 32px clamp(16px, 5vw, 64px) 80px;
+  }
+  h1 { font-weight: 600; font-size: 26px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 36px; font-size: 15px; }
+  .lane { margin: 0 0 56px; }
+  .lane-head { display:flex; align-items:baseline; gap:12px; margin-bottom:16px; }
+  .tag { font-size:12px; letter-spacing:.16em; text-transform:uppercase; padding:5px 12px;
+         border-radius:999px; font-weight:700; }
+  .lane h2 { font-weight:600; font-size:19px; margin:0; }
+  .lane p.desc { color:var(--muted); font-size:13.5px; margin:2px 0 0; }
+  .row { display:grid; grid-template-columns: 220px 1fr; gap:20px; align-items:stretch; }
+  @media (max-width: 720px){ .row { grid-template-columns: 1fr; } }
+
+  /* score ring shared structure */
+  .ring { width:150px; height:150px; border-radius:50%; display:grid; place-items:center; position:relative; }
+  .ring .val { font-size:34px; font-weight:700; }
+  .ring .cap { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
+  .chip { font-size:13px; padding:6px 12px; border-radius:999px; font-weight:600; }
+  .meta { font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+
+  /* ---------- A: FROSTED GLASS ---------- */
+  .glass .card {
+    background: rgba(255,255,255,0.07); backdrop-filter: blur(18px);
+    border: 1px solid rgba(255,255,255,0.16); border-radius: 22px; padding: 22px 24px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.22);
+  }
+  .glass .ring { background: conic-gradient(#5eead4 0 72%, rgba(255,255,255,0.12) 72% 100%); }
+  .glass .ring::after { content:""; position:absolute; inset:14px; border-radius:50%;
+    background: rgba(8,40,34,0.65); backdrop-filter: blur(6px); }
+  .glass .ring .val, .glass .ring .cap { position:relative; z-index:1; }
+  .glass .chip { background: rgba(94,234,212,0.16); color:#aef6e6; border:1px solid rgba(94,234,212,0.3); }
+  .glass .pill { display:inline-block; padding:8px 16px; border-radius:999px; font-weight:600;
+    background: rgba(94,234,212,0.16); border:1px solid rgba(94,234,212,0.34); color:#bff7ea; }
+  .glass .tag { background: rgba(94,234,212,0.18); color:#bff7ea; }
+
+  /* ---------- B: NEUMORPHIC SOFT 3D ---------- */
+  .neu { }
+  .neu .pad { background:#0e4f45; border-radius:26px; padding:6px; }
+  .neu .card {
+    background:#0e4f45; border-radius:22px; padding:22px 24px;
+    box-shadow: -10px -10px 22px rgba(255,255,255,0.05), 12px 12px 26px rgba(0,0,0,0.45);
+  }
+  .neu .ring {
+    background:#0e4f45;
+    box-shadow: inset -8px -8px 16px rgba(255,255,255,0.05), inset 9px 9px 18px rgba(0,0,0,0.5);
+  }
+  .neu .ring .inner { width:150px;height:150px;border-radius:50%;display:grid;place-items:center;
+    background: conic-gradient(#43c9aa 0 72%, transparent 72% 100%);
+    -webkit-mask: radial-gradient(circle 56px at center, transparent 98%, #000 100%);
+            mask: radial-gradient(circle 56px at center, transparent 98%, #000 100%); }
+  .neu .ring .label { position:absolute; display:grid; place-items:center; text-align:center; }
+  .neu .chip { background:#0e4f45; color:#9be9d3;
+    box-shadow: -4px -4px 8px rgba(255,255,255,0.05), 5px 5px 10px rgba(0,0,0,0.45); }
+  .neu .pill { display:inline-block; padding:9px 18px; border-radius:999px; font-weight:600; color:#bdf3e4;
+    background:#0e4f45; box-shadow: -5px -5px 10px rgba(255,255,255,0.05), 6px 6px 12px rgba(0,0,0,0.5); }
+  .neu .tag { background:#0e4f45; color:#9be9d3; box-shadow: 4px 4px 9px rgba(0,0,0,0.45); }
+
+  /* ---------- C: NEON CYBER ---------- */
+  .neon .card {
+    background:#06201c; border:1px solid rgba(45,212,191,0.35); border-radius:14px; padding:22px 24px;
+    box-shadow: 0 0 24px rgba(45,212,191,0.25), inset 0 0 28px rgba(0,0,0,0.5);
+  }
+  .neon .ring { background: conic-gradient(#22d3ee 0 72%, rgba(45,212,191,0.12) 72% 100%);
+    box-shadow: 0 0 26px rgba(34,211,238,0.55); }
+  .neon .ring::after { content:""; position:absolute; inset:13px; border-radius:50%; background:#04140f; }
+  .neon .ring .val { position:relative; z-index:1; color:#7ef3ff; text-shadow:0 0 12px rgba(34,211,238,0.8); }
+  .neon .ring .cap { position:relative; z-index:1; }
+  .neon .chip { background: rgba(34,211,238,0.08); color:#7ef3ff; border:1px solid rgba(34,211,238,0.5);
+    box-shadow:0 0 10px rgba(34,211,238,0.25); font-family: ui-monospace, monospace; }
+  .neon .pill { display:inline-block; padding:8px 16px; border-radius:8px; font-weight:700; letter-spacing:.04em;
+    color:#04140f; background:#2dd4bf; box-shadow:0 0 18px rgba(45,212,191,0.7); font-family: ui-monospace, monospace; }
+  .neon .tag { background: rgba(34,211,238,0.12); color:#7ef3ff; border:1px solid rgba(34,211,238,0.5); }
+  .neon .card .meta { color:#5fb8b0; }
+</style>
+</head>
+<body>
+  <h1>Pick a direction</h1>
+  <p class="sub">Same data, three teal aesthetics. Tell me <strong>A</strong>, <strong>B</strong>, or <strong>C</strong> and I'll build the full app in that style.</p>
+
+  <!-- A -->
+  <section class="lane glass">
+    <div class="lane-head">
+      <span class="tag">A</span>
+      <div><h2>Frosted glass</h2><p class="desc">Translucent blurred panels floating over a teal gradient. Elegant, modern-SaaS.</p></div>
+    </div>
+    <div class="row">
+      <div class="card" style="display:grid;place-items:center;gap:10px;">
+        <div class="ring"><div class="val">72%</div></div>
+        <div class="cap">Overall match</div>
+      </div>
+      <div class="card">
+        <div class="meta">Matched skills</div>
+        <div class="chips">
+          <span class="chip">python</span><span class="chip">aws</span><span class="chip">sql</span><span class="chip">machine learning</span>
+        </div>
+        <div class="meta" style="margin-top:18px;">Decision</div>
+        <span class="pill">Rewrite · summary_only</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- B -->
+  <section class="lane neu">
+    <div class="lane-head">
+      <span class="tag">B</span>
+      <div><h2>Soft 3D (neumorphic)</h2><p class="desc">Boxes extruded from the surface with soft dual shadows. Tactile, the most literally "3D".</p></div>
+    </div>
+    <div class="row">
+      <div class="card" style="display:grid;place-items:center;gap:14px;">
+        <div class="ring" style="width:150px;height:150px;border-radius:50%;position:relative;display:grid;place-items:center;">
+          <div class="inner"></div>
+          <div class="label"><div class="val" style="font-size:30px;font-weight:700;">72%</div></div>
+        </div>
+        <div class="cap">Overall match</div>
+      </div>
+      <div class="card">
+        <div class="meta">Matched skills</div>
+        <div class="chips">
+          <span class="chip">python</span><span class="chip">aws</span><span class="chip">sql</span><span class="chip">machine learning</span>
+        </div>
+        <div class="meta" style="margin-top:18px;">Decision</div>
+        <span class="pill">Rewrite · summary_only</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- C -->
+  <section class="lane neon">
+    <div class="lane-head">
+      <span class="tag">C</span>
+      <div><h2>Neon cyber</h2><p class="desc">Dark HUD panels with glowing cyan borders and neon numbers. Bold, futuristic dashboard.</p></div>
+    </div>
+    <div class="row">
+      <div class="card" style="display:grid;place-items:center;gap:10px;">
+        <div class="ring"><div class="val">72%</div></div>
+        <div class="cap" style="position:relative;z-index:1;">Overall match</div>
+      </div>
+      <div class="card">
+        <div class="meta">Matched skills</div>
+        <div class="chips">
+          <span class="chip">python</span><span class="chip">aws</span><span class="chip">sql</span><span class="chip">machine learning</span>
+        </div>
+        <div class="meta" style="margin-top:18px;">Decision</div>
+        <span class="pill">REWRITE · SUMMARY_ONLY</span>
+      </div>
+    </div>
+  </section>
+</body>
+</html>

@@ -14,7 +14,7 @@ dependencies = [
     "ollama>=0.3.0",
     "pydantic>=2.5",
     "langchain-text-splitters",
-    "PyPDF2",
+    "pypdf",
     "flask",
 ]
 

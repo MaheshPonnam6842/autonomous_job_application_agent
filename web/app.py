@@ -39,7 +39,7 @@ def read_resume_file(filepath: str) -> str:
             return f.read()
 
     if filepath.endswith(".pdf"):
-        from PyPDF2 import PdfReader
+        from pypdf import PdfReader
 
         reader = PdfReader(filepath)
         return "\n".join(page.extract_text() or "" for page in reader.pages)
