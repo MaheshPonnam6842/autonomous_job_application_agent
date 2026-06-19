@@ -161,6 +161,9 @@
   <!-- RESULTS -->
   <div id="results" class="grid hidden">
 
+    <div id="modeNote" class="hidden" style="padding:12px 16px; border-radius:14px; font-size:13.5px; line-height:1.6;
+         background:rgba(252,211,77,0.1); border:1px solid rgba(252,211,77,0.35); color:#fde9a9;"></div>
+
     <section class="card">
       <div class="hero">
         <div style="display:grid; place-items:center; gap:8px;">
@@ -176,7 +179,7 @@
         <h2>Skill alignment</h2>
         <p class="meta">Matched</p>
         <div class="chips" id="matched"></div>
-        <p class="meta" style="margin-top:16px;">Missing required</p>
+        <p class="meta" style="margin-top:16px;">Gaps (in the job, not on your resume)</p>
         <div class="chips" id="missing"></div>
       </section>
 
@@ -293,10 +296,13 @@ function render(s){
   $("matched").innerHTML = matched.length
     ? matched.map(x => `<span class="chip">${esc(x)}</span>`).join("")
     : `<span class="chip muted">none detected</span>`;
-  const missing = s.missing_required_skills || [];
-  $("missing").innerHTML = missing.length
-    ? missing.map(x => `<span class="chip gap">${esc(x)}</span>`).join("")
-    : `<span class="chip muted">none — all required skills covered</span>`;
+  const gapSet = new Set(s.missing_required_skills || []);
+  for(const cat in (s.skill_gap_hard || {})) (s.skill_gap_hard[cat] || []).forEach(x => gapSet.add(x));
+  for(const cat in (s.skill_gap_soft || {})) (s.skill_gap_soft[cat] || []).forEach(x => gapSet.add(x));
+  const gaps = [...gapSet];
+  $("missing").innerHTML = gaps.length
+    ? gaps.map(x => `<span class="chip gap">${esc(x)}</span>`).join("")
+    : `<span class="chip">none — your resume covers every JD skill detected</span>`;
 
   const need = s.rewrite_required;
   $("decisionPill").innerHTML = need
@@ -323,6 +329,17 @@ function render(s){
     ["Projects", (s.project_entries||[]).length],
     ["Education", (s.education_entries||[]).length],
   ].map(([k,v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+
+  const offline = (s.warnings || []).some(w => String(w).includes("llm_unavailable"));
+  const note = $("modeNote");
+  if(offline){
+    note.innerHTML = "Offline mode (Ollama not reached): JD title, ATS keyword score, and the rewrite are disabled. " +
+      "Skill coverage, semantic similarity, gaps and structure below are computed deterministically. " +
+      "Start Ollama and reload for the full analysis.";
+    note.classList.remove("hidden");
+  } else {
+    note.classList.add("hidden");
+  }
 
   $("rewriteCard").classList.add("hidden");
   setBusy(false);
