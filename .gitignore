@@ -14,6 +14,10 @@ env/
 # Local config / secrets
 .env
 
+# Uploaded resumes (personal data — keep out of git)
+uploads/*.pdf
+uploads/*.txt
+
 # Runtime output
 logs/
 artifacts/
