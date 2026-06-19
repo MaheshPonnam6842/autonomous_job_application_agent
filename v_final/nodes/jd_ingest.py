@@ -14,12 +14,11 @@ Writes: jd_clean_text, jd_title, jd_domain, jd_seniority_level,
 from __future__ import annotations
 
 import re
-from typing import Any, Dict
-
-from v_final.llm import JDExtraction, get_client
-from v_final.state.job_application_state import JobApplicationState
+from typing import Any
 
 from utils.text_normalization import _priority_dedupe, normalize_text
+from v_final.llm import JDExtraction, get_client
+from v_final.state.job_application_state import JobApplicationState
 
 _SYSTEM = "Return JSON only. Follow the schema strictly. Canonicalize as instructed."
 
@@ -62,7 +61,7 @@ JOB DESCRIPTION:
 """.strip()
 
 
-def _empty_jd_fields() -> Dict[str, Any]:
+def _empty_jd_fields() -> dict[str, Any]:
     return {
         "jd_title": "",
         "jd_domain": "unknown",

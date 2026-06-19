@@ -8,7 +8,6 @@ readable report.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from v_final.config import settings
 from v_final.graph.job_application_graph import graph
@@ -20,7 +19,7 @@ def run(
     job_description_text: str,
     *,
     resume_source: str = "manual",
-    resume_pdf_path: Optional[str] = None,
+    resume_pdf_path: str | None = None,
 ) -> JobApplicationState:
     """Run the full agent and return the final state."""
     initial: JobApplicationState = {

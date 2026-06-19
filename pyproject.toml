@@ -46,6 +46,8 @@ packages = [
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+# v1_baseline is kept verbatim as the historical "before" snapshot; don't lint it.
+extend-exclude = ["v1_baseline", "venv"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

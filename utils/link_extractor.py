@@ -1,13 +1,13 @@
-from typing import List, Dict, Any
 from PyPDF2 import PdfReader
 
-def extract_pdf_links(pdf_path: str) -> List[str]:
+
+def extract_pdf_links(pdf_path: str) -> list[str]:
     """
     Extract all hyperlink URIs from a PDF via /Annots -> /A -> /URI.
     Returns deduped list preserving order.
     """
     reader = PdfReader(pdf_path)
-    urls: List[str] = []
+    urls: list[str] = []
 
     for page in reader.pages:
         annots = page.get("/Annots") or []
@@ -23,7 +23,7 @@ def extract_pdf_links(pdf_path: str) -> List[str]:
 
     # dedupe preserve order
     seen = set()
-    out: List[str] = []
+    out: list[str] = []
     for u in urls:
         u = u.rstrip(".,;")
         if u and u not in seen:

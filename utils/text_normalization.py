@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 SECTION_HEADERS = {
     "summary": ["summary", "profile", "professional summary"],
@@ -32,11 +32,11 @@ def _is_header_candidate(line: str) -> bool:
     words = line.split()
     return 1 <= len(words) <= 3
 
-def split_by_sections(text: str) -> Dict[str, List[str]]:
+def split_by_sections(text: str) -> dict[str, list[str]]:
     """
     Split normalized resume text into canonical sections.
     """
-    sections: Dict[str, List[str]] = {}
+    sections: dict[str, list[str]] = {}
     current_section = None
     buffer:list = []
     
@@ -61,7 +61,7 @@ def split_by_sections(text: str) -> Dict[str, List[str]]:
 
     return sections
 
-def _extract_bullets(section_text: str) -> List[str]:
+def _extract_bullets(section_text: str) -> list[str]:
     """
     Extract bullet points from a section.
     Rules:
@@ -70,7 +70,7 @@ def _extract_bullets(section_text: str) -> List[str]:
     - All following lines belong to the same bullet until a new marker appears
     - Periods/full stops are ignored for splitting
     """
-    bullets: List[str] = []
+    bullets: list[str] = []
     current_bullet: str | None = None
     bullet_started = False
 
@@ -106,13 +106,13 @@ def _extract_bullets(section_text: str) -> List[str]:
 
     return bullets
 
-def parse_skills(section_text: str) -> Dict[str, List[str]]:
+def parse_skills(section_text: str) -> dict[str, list[str]]:
     """
     Convert skills section into grouped skills if possible.
     Example:
         ML: regression, classification
     """
-    skills: Dict[str, List[str]] = {}
+    skills: dict[str, list[str]] = {}
 
     for line in section_text.split("\n"):
         if ":" in line:
@@ -147,15 +147,15 @@ def _is_heading_line(line: str) -> bool:
     words = s.split()
     return 1 <= len(words) <= 6
 
-def extract_grouped_bullets(section_text: str, default_group: str = "UNKNOWN") -> Tuple[Dict[str, List[str]], List[str]]:
+def extract_grouped_bullets(section_text: str, default_group: str = "UNKNOWN") -> tuple[dict[str, list[str]], list[str]]:
     """
     Parses sections like Experience/Projects into:
     - groups: heading -> list of bullets
     - flat_bullets: all bullets in order
     Handles heading lines appearing between bullets (won't be appended into bullet text).
     """
-    groups: Dict[str, List[str]] = {}
-    flat: List[str] = []
+    groups: dict[str, list[str]] = {}
+    flat: list[str] = []
 
     current_group = default_group
     groups.setdefault(current_group, [])
@@ -201,7 +201,7 @@ def extract_grouped_bullets(section_text: str, default_group: str = "UNKNOWN") -
         groups.pop(default_group, None)
 
     return groups, flat
-def _safe_list(x: Any) -> List[str]:
+def _safe_list(x: Any) -> list[str]:
     if isinstance(x, list):
         return [str(i).strip() for i in x if str(i).strip()]
     return []
@@ -228,7 +228,7 @@ def _extract_json_block(text: str) -> str:
     return m.group(1).strip() if m else ""
 
 
-def _split_compound_terms(s: str) -> List[str]:
+def _split_compound_terms(s: str) -> list[str]:
     """
     Split terms like 'networking/communication protocols' or 'python, sql'
     into atomic tokens without being too aggressive.
@@ -243,8 +243,8 @@ def _split_compound_terms(s: str) -> List[str]:
     parts = [p for p in parts if p and p not in {"/", ",", ";", "|", "&", "+",}]
     return [p.strip() for p in parts if p.strip()]
 
-def _clean_list(items: List[str]) -> List[str]:
-    out: List[str] = []
+def _clean_list(items: list[str]) -> list[str]:
+    out: list[str] = []
     for x in items or []:
         x = str(x).strip().lower()
         x = re.sub(r"\s+", " ", x)
@@ -269,11 +269,11 @@ def _clean_list(items: List[str]) -> List[str]:
     return final
 
 def _priority_dedupe(
-    required: List[str],
-    preferred: List[str],
-    tools_process: List[str],
-    keywords: List[str],
-                        ) -> Tuple[List[str], List[str], List[str], List[str]]:
+    required: list[str],
+    preferred: list[str],
+    tools_process: list[str],
+    keywords: list[str],
+                        ) -> tuple[list[str], list[str], list[str], list[str]]:
     required = _clean_list(required)
     req_set = set(required)
 

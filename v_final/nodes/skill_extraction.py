@@ -16,12 +16,11 @@ Writes:
 from __future__ import annotations
 
 import re
-from typing import Dict, List, Set
 
 from v_final.state.job_application_state import JobApplicationState, SkillProfile
 
 # --- Canonicalization: collapse synonyms / variants to one form ------------------
-CANON: Dict[str, str] = {
+CANON: dict[str, str] = {
     "ml": "machine learning",
     "ai": "artificial intelligence",
     "genai": "gen ai",
@@ -74,7 +73,7 @@ SOFT_PROCESS = {
 }
 
 # Vocabulary used to scan free text (bullets, summaries) for skills.
-VOCAB: Set[str] = LANGUAGES | CLOUD | TOOLS | ML_CONCEPTS | SOFT_PROCESS
+VOCAB: set[str] = LANGUAGES | CLOUD | TOOLS | ML_CONCEPTS | SOFT_PROCESS
 
 # Categories considered "hard" requirements when computing gaps.
 _HARD_CATS = {"hard_skills", "tools", "cloud", "ml_concepts", "keywords"}
@@ -88,9 +87,9 @@ def _canon(x: str) -> str:
     return CANON.get(s, s)
 
 
-def _dedupe(items: List[str]) -> List[str]:
-    seen: Set[str] = set()
-    out: List[str] = []
+def _dedupe(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
     for x in items or []:
         x = _canon(x)
         if x and x not in seen:
@@ -113,20 +112,20 @@ def _classify(term: str) -> str:
     return "keywords"
 
 
-def _build_profile(terms: List[str]) -> SkillProfile:
-    buckets: Dict[str, List[str]] = {cat: [] for cat in _ALL_CATS}
+def _build_profile(terms: list[str]) -> SkillProfile:
+    buckets: dict[str, list[str]] = {cat: [] for cat in _ALL_CATS}
     for t in _dedupe(terms):
         buckets[_classify(t)].append(t)
     return {cat: buckets[cat] for cat in _ALL_CATS if buckets[cat]}  # drop empty cats
 
 
-def _scan_vocab(text: str) -> List[str]:
+def _scan_vocab(text: str) -> list[str]:
     """Find known skills mentioned anywhere in free text, with token boundaries
     so 'r' doesn't match 'react' and 'c' doesn't match 'classification'."""
     if not text:
         return []
     low = text.lower()
-    found: List[str] = []
+    found: list[str] = []
     for term in VOCAB:
         pattern = r"(?<![a-z0-9+#])" + re.escape(term) + r"(?![a-z0-9+#])"
         if re.search(pattern, low):
@@ -134,8 +133,8 @@ def _scan_vocab(text: str) -> List[str]:
     return found
 
 
-def _resume_terms(state: JobApplicationState) -> List[str]:
-    terms: List[str] = []
+def _resume_terms(state: JobApplicationState) -> list[str]:
+    terms: list[str] = []
     for key, vals in (state.get("resume_skills_structured") or {}).items():
         terms.append(key)
         terms.extend(vals or [])
@@ -148,16 +147,16 @@ def _resume_terms(state: JobApplicationState) -> List[str]:
     return terms
 
 
-def _jd_terms(state: JobApplicationState) -> List[str]:
-    terms: List[str] = []
+def _jd_terms(state: JobApplicationState) -> list[str]:
+    terms: list[str] = []
     for key in ("jd_skills_required", "jd_skills_preferred", "jd_tools_process", "jd_keywords"):
         terms.extend(state.get(key, []) or [])
     terms.extend(_scan_vocab(state.get("jd_clean_text", "") or ""))
     return terms
 
 
-def _flatten(profile: SkillProfile) -> Set[str]:
-    out: Set[str] = set()
+def _flatten(profile: SkillProfile) -> set[str]:
+    out: set[str] = set()
     for vals in profile.values():
         out.update(vals)
     return out
@@ -168,9 +167,9 @@ def skill_extraction_node(state: JobApplicationState) -> JobApplicationState:
     jd_profile = _build_profile(_jd_terms(state))
     resume_set = _flatten(resume_profile)
 
-    overlap: Dict[str, List[str]] = {}
-    gap_hard: Dict[str, List[str]] = {}
-    gap_soft: Dict[str, List[str]] = {}
+    overlap: dict[str, list[str]] = {}
+    gap_hard: dict[str, list[str]] = {}
+    gap_soft: dict[str, list[str]] = {}
 
     for cat, items in jd_profile.items():
         matched = [t for t in items if t in resume_set]

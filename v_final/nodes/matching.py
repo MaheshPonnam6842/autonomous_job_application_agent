@@ -15,7 +15,6 @@ from __future__ import annotations
 import math
 import re
 from collections import Counter
-from typing import List, Set
 
 from v_final.config import settings
 from v_final.llm import get_client
@@ -31,7 +30,7 @@ _STOP = {
 }
 
 
-def _tokens(text: str) -> List[str]:
+def _tokens(text: str) -> list[str]:
     return [t for t in _TOKEN_RE.findall((text or "").lower()) if len(t) > 1 and t not in _STOP]
 
 
@@ -46,10 +45,10 @@ def _lexical_cosine(a: str, b: str) -> float:
     return dot / (na * nb) if na and nb else 0.0
 
 
-def _vec_cosine(a: List[float], b: List[float]) -> float:
+def _vec_cosine(a: list[float], b: list[float]) -> float:
     if not a or not b or len(a) != len(b):
         return 0.0
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=False))
     na = math.sqrt(sum(x * x for x in a))
     nb = math.sqrt(sum(y * y for y in b))
     return dot / (na * nb) if na and nb else 0.0
@@ -67,8 +66,8 @@ def _semantic_similarity(state: JobApplicationState) -> float:
     return _lexical_cosine(resume, jd)  # deterministic fallback when embeddings unavailable
 
 
-def _ats_score(state: JobApplicationState, resume_set: Set[str]) -> float:
-    terms: Set[str] = set()
+def _ats_score(state: JobApplicationState, resume_set: set[str]) -> float:
+    terms: set[str] = set()
     for key in ("jd_skills_required", "jd_skills_preferred", "jd_keywords"):
         for t in state.get(key, []) or []:
             c = _canon(t)

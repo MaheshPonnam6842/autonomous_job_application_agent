@@ -10,13 +10,12 @@ Writes: experience_entries, project_entries, education_entries
 
 from __future__ import annotations
 
-from v_final.state.job_application_state import JobApplicationState
-
 from utils.resume_parsing import (
     parse_education_entries,
     parse_experience_entries,
     parse_project_entries,
 )
+from v_final.state.job_application_state import JobApplicationState
 
 
 def resume_structure_node(state: JobApplicationState) -> JobApplicationState:

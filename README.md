@@ -1,5 +1,7 @@
 # Autonomous Job Application Agent
 
+[![CI](https://github.com/MaheshPonnam6842/autonomous_job_application_agent/actions/workflows/ci.yml/badge.svg)](https://github.com/MaheshPonnam6842/autonomous_job_application_agent/actions/workflows/ci.yml)
+
 A **LangGraph** agent that reads a resume and a job description, scores fit along
 three explainable dimensions, and — only when warranted — produces a *scoped,
 factual* resume rewrite plus recruiter outreach drafts. It runs fully locally on
@@ -76,6 +78,24 @@ python web/app.py    # http://localhost:5000
 ```
 
 > Run commands from the repo root so the `v_final`, `utils`, and `src` packages resolve.
+
+### Run with Docker
+
+Brings up the web app and a local Ollama server together:
+
+```bash
+docker compose up --build                                   # app on http://localhost:5000
+docker compose exec ollama ollama pull llama3.1:8b          # one-time
+docker compose exec ollama ollama pull nomic-embed-text     # optional: semantic score
+```
+
+The app degrades gracefully if models aren't pulled yet (analysis still runs).
+
+## Continuous integration
+
+Every push runs [CI](.github/workflows/ci.yml) on Python 3.11 and 3.12: `ruff`
+lint + the full pytest suite on the offline deterministic path (no model server
+needed in CI).
 
 ## Scoring
 

@@ -1,37 +1,37 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional, TypedDict
+from typing import TypedDict
 
 
 class SkillProfile(TypedDict, total=False):
-    hard_skills: List[str]     # python, sql, statistics, nlp, ...
-    tools: List[str]           # airflow, docker, mlflow, ...
-    cloud: List[str]           # aws, gcp, azure
-    ml_concepts: List[str]     # classification, llm, rag, time series, ...
-    soft_skills: List[str]     # ownership, communication, stakeholder mgmt, ...
-    domains: List[str]         # finance, healthcare, hr tech, ...
-    certs: List[str]           # aws certified..., etc.
-    keywords: List[str]        # extra ATS keywords
+    hard_skills: list[str]     # python, sql, statistics, nlp, ...
+    tools: list[str]           # airflow, docker, mlflow, ...
+    cloud: list[str]           # aws, gcp, azure
+    ml_concepts: list[str]     # classification, llm, rag, time series, ...
+    soft_skills: list[str]     # ownership, communication, stakeholder mgmt, ...
+    domains: list[str]         # finance, healthcare, hr tech, ...
+    certs: list[str]           # aws certified..., etc.
+    keywords: list[str]        # extra ATS keywords
 
 class EducationEntry(TypedDict):
     degree: str            # Bachelor | Master | PhD
     field: str
     institution: str
-    year: Optional[str]
+    year: str | None
 
 
 class ExperienceEntry(TypedDict):
     company: str
     role: str
-    start_date: Optional[str]
-    end_date: Optional[str]
-    bullets: List[str]
+    start_date: str | None
+    end_date: str | None
+    bullets: list[str]
 
 
 class ProjectEntry(TypedDict):
     name: str
-    description: Optional[str]
-    bullets: List[str]
+    description: str | None
+    bullets: list[str]
 class ResumeSections(TypedDict):
     summary: str
     skills_raw: str                  # raw skills section text
@@ -51,48 +51,48 @@ class JobApplicationState(TypedDict, total=False):
     resume_sections: ResumeSections
 
     # 3. Resume Structure (Derived)
-    experience_entries: List[ExperienceEntry]
-    project_entries: List[ProjectEntry]
-    education_entries: List[EducationEntry]
-    resume_skills_structured: Dict[str, List[str]]
+    experience_entries: list[ExperienceEntry]
+    project_entries: list[ProjectEntry]
+    education_entries: list[EducationEntry]
+    resume_skills_structured: dict[str, list[str]]
 
 
     # 4. Bullet Intelligence
-    experience_bullets: List[str]
-    project_bullets: List[str]
+    experience_bullets: list[str]
+    project_bullets: list[str]
 
-    experience_groups: Dict[str, List[str]]   # company/role heading -> bullets
-    project_groups: Dict[str, List[str]]   
-    experience_bullets_by_group: Dict[str, List[str]]
-    project_bullets_by_group: Dict[str, List[str]]
+    experience_groups: dict[str, list[str]]   # company/role heading -> bullets
+    project_groups: dict[str, list[str]]   
+    experience_bullets_by_group: dict[str, list[str]]
+    project_bullets_by_group: dict[str, list[str]]
     resume_pdf_path: str                # optional path for PDF link extraction
 
     # 5. Job Description Understanding
     jd_title: str
-    jd_skills_required: List[str]
-    jd_skills_preferred: List[str]
-    jd_responsibilities: List[str]
+    jd_skills_required: list[str]
+    jd_skills_preferred: list[str]
+    jd_responsibilities: list[str]
     jd_domain: str                      # finance | retail | healthcare
     jd_seniority_level: str             # junior | mid | senior | staff
     jd_clean_text: str
-    jd_tools_process: List[str]
-    jd_keywords: List[str]
+    jd_tools_process: list[str]
+    jd_keywords: list[str]
     # 6. Skill Intelligence
     resume_skill_profile: SkillProfile
     jd_skill_profile: SkillProfile
 
-    skill_overlap: Dict[str, List[str]]     # category → matched
-    skill_gap_hard: Dict[str, List[str]]
-    skill_gap_soft: Dict[str, List[str]]
+    skill_overlap: dict[str, list[str]]     # category → matched
+    skill_gap_hard: dict[str, list[str]]
+    skill_gap_soft: dict[str, list[str]]
 
     # 7. Matching & Scoring
     semantic_similarity_score: float
     skill_match_score: float
     ats_match_score: float
     overall_match_score: float
-    score_breakdown: Dict[str, float]
-    missing_required_skills: List[str]
-    matched_skills: List[str]
+    score_breakdown: dict[str, float]
+    missing_required_skills: list[str]
+    matched_skills: list[str]
 
     # 8. Decision & Strategy
     rewrite_required: bool
@@ -102,23 +102,23 @@ class JobApplicationState(TypedDict, total=False):
     # "experience_bullets" | "full_rewrite"
 
     # 9. Rewrite Outputs (Structured)
-    optimized_summary: Optional[str]
-    optimized_experience_bullets: Optional[List[str]]
-    optimized_project_bullets: Optional[List[str]]
-    optimized_skills_section: Optional[str]
+    optimized_summary: str | None
+    optimized_experience_bullets: list[str] | None
+    optimized_project_bullets: list[str] | None
+    optimized_skills_section: str | None
 
     optimized_resume_text: str
-    rewrite_diff: Optional[List[str]]
+    rewrite_diff: list[str] | None
     resume_version: str                 # original | rewritten | rewrite_failed_fallback
-    rewrite_error: Optional[str]
+    rewrite_error: str | None
 
     # 10. Outreach Outputs
     outreach_dm_text: str
     outreach_email_text: str
 
     # 11. Agent Diagnostics
-    agent_notes: List[str]
-    warnings: List[str]
+    agent_notes: list[str]
+    warnings: list[str]
     rewrite_noop: bool
-    resume_links: List[str]  # extracted from PDF annotations, if available
+    resume_links: list[str]  # extracted from PDF annotations, if available
     run_artifact_path: str   # where the tracking node saved this run's summary

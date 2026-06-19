@@ -13,8 +13,6 @@ Writes: optimized_resume_text, resume_version, rewrite_error, rewrite_noop
 
 from __future__ import annotations
 
-from typing import List
-
 from v_final.config import settings
 from v_final.llm import get_client
 from v_final.state.job_application_state import JobApplicationState
@@ -31,7 +29,7 @@ _STRATEGY_SCOPE = {
 
 
 def _build_rewrite_prompt(resume_text: str, jd_text: str,
-                          missing_skills: List[str], strategy: str) -> str:
+                          missing_skills: list[str], strategy: str) -> str:
     missing = ", ".join(missing_skills) if missing_skills else "None"
     scope = _STRATEGY_SCOPE.get(strategy, _STRATEGY_SCOPE["full_rewrite"])
     return f"""

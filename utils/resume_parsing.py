@@ -18,7 +18,6 @@ followed by its bullets".
 from __future__ import annotations
 
 import re
-from typing import List, Optional, Tuple
 
 from v_final.state.job_application_state import (
     EducationEntry,
@@ -47,7 +46,7 @@ _YEAR_RE = re.compile(r"(19|20)\d{2}")
 _PROJECT_LINK_RE = re.compile(r"\s*[-–—]?\s*link\b.*$", re.IGNORECASE)
 
 
-def _lines(text: str) -> List[str]:
+def _lines(text: str) -> list[str]:
     return [ln.strip() for ln in (text or "").split("\n") if ln.strip()]
 
 
@@ -79,7 +78,7 @@ def _looks_like_role(s: str) -> bool:
     return any(w.strip(",.").lower() in _ROLE_KEYWORDS for w in s.split())
 
 
-def _parse_date_range(line: str) -> Tuple[Optional[str], Optional[str]]:
+def _parse_date_range(line: str) -> tuple[str | None, str | None]:
     parts = [p.strip() for p in _DATE_SEP_RE.split(line) if p.strip()]
     if len(parts) >= 2:
         return parts[0], parts[-1]
@@ -88,15 +87,15 @@ def _parse_date_range(line: str) -> Tuple[Optional[str], Optional[str]]:
     return None, None
 
 
-def _blocks(lines: List[str]):
+def _blocks(lines: list[str]):
     """Yield (structural_lines, bullets) pairs, joining wrapped bullet lines."""
     i, n = 0, len(lines)
     while i < n:
-        header: List[str] = []
+        header: list[str] = []
         while i < n and _is_structural(lines[i]):
             header.append(lines[i])
             i += 1
-        bullets: List[str] = []
+        bullets: list[str] = []
         while i < n and not _is_structural(lines[i]):
             if _is_bullet(lines[i]):
                 bullets.append(_strip_bullet(lines[i]))
@@ -107,8 +106,8 @@ def _blocks(lines: List[str]):
             yield header, bullets
 
 
-def parse_experience_entries(raw: str) -> List[ExperienceEntry]:
-    entries: List[ExperienceEntry] = []
+def parse_experience_entries(raw: str) -> list[ExperienceEntry]:
+    entries: list[ExperienceEntry] = []
     for header, bullets in _blocks(_lines(raw)):
         remaining = list(header)
         start = end = None
@@ -134,8 +133,8 @@ def parse_experience_entries(raw: str) -> List[ExperienceEntry]:
     return entries
 
 
-def parse_project_entries(raw: str) -> List[ProjectEntry]:
-    entries: List[ProjectEntry] = []
+def parse_project_entries(raw: str) -> list[ProjectEntry]:
+    entries: list[ProjectEntry] = []
     for header, bullets in _blocks(_lines(raw)):
         if not header and not bullets:
             continue
@@ -145,7 +144,7 @@ def parse_project_entries(raw: str) -> List[ProjectEntry]:
     return entries
 
 
-def _split_degree_field(line: str) -> Tuple[str, str]:
+def _split_degree_field(line: str) -> tuple[str, str]:
     if "," in line:
         degree, field = line.split(",", 1)
         return degree.strip(), field.strip()
@@ -153,10 +152,10 @@ def _split_degree_field(line: str) -> Tuple[str, str]:
     return (m.group(0).strip() if m else line.strip()), ""
 
 
-def parse_education_entries(raw: str) -> List[EducationEntry]:
-    entries: List[EducationEntry] = []
-    pending_institution: Optional[str] = None
-    leftover_years: List[str] = []
+def parse_education_entries(raw: str) -> list[EducationEntry]:
+    entries: list[EducationEntry] = []
+    pending_institution: str | None = None
+    leftover_years: list[str] = []
 
     for line in _lines(raw):
         is_year_line = _YEAR_RE.search(line) and not _DEGREE_RE.search(line) and len(line.split()) <= 6

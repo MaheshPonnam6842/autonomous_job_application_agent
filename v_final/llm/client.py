@@ -16,7 +16,7 @@ import json
 import logging
 import re
 from dataclasses import dataclass
-from typing import Optional, TypeVar
+from typing import TypeVar
 
 from pydantic import BaseModel, ValidationError
 
@@ -34,7 +34,7 @@ class LLMResult:
 
     text: str
     ok: bool
-    error: Optional[str] = None
+    error: str | None = None
     fallback: bool = False
 
 
@@ -50,10 +50,10 @@ def _extract_json_block(text: str) -> str:
 
 
 class OllamaClient:
-    def __init__(self, cfg: Optional[LLMConfig] = None) -> None:
+    def __init__(self, cfg: LLMConfig | None = None) -> None:
         self.cfg = cfg or settings.llm
         self._client = None
-        self._available: Optional[bool] = None  # tri-state cache
+        self._available: bool | None = None  # tri-state cache
 
     @property
     def client(self):  # lazy import so the package loads without ollama installed
@@ -92,9 +92,9 @@ class OllamaClient:
         system: str,
         user: str,
         *,
-        model: Optional[str] = None,
-        temperature: Optional[float] = None,
-        num_predict: Optional[int] = None,
+        model: str | None = None,
+        temperature: float | None = None,
+        num_predict: int | None = None,
         json_mode: bool = False,
     ) -> LLMResult:
         if not self.available():
@@ -108,7 +108,7 @@ class OllamaClient:
         if num_predict is not None:
             options["num_predict"] = num_predict
 
-        last_err: Optional[str] = None
+        last_err: str | None = None
         for attempt in range(self.cfg.max_retries + 1):
             try:
                 resp = self.client.chat(
@@ -133,8 +133,8 @@ class OllamaClient:
         user: str,
         schema: type[T],
         *,
-        model: Optional[str] = None,
-    ) -> Optional[T]:
+        model: str | None = None,
+    ) -> T | None:
         """Return a validated ``schema`` instance, or ``None`` on any failure."""
         res = self.chat(system, user, model=model, json_mode=True, temperature=0.1)
         if not res.ok:
@@ -153,7 +153,7 @@ class OllamaClient:
             logger.warning("structured output failed schema validation: %s", exc)
             return None
 
-    def embed(self, text: str, *, model: Optional[str] = None) -> Optional[list[float]]:
+    def embed(self, text: str, *, model: str | None = None) -> list[float] | None:
         """Return an embedding vector, or ``None`` if embeddings are unavailable."""
         if not self.available() or not text.strip():
             return None
@@ -167,7 +167,7 @@ class OllamaClient:
             return None
 
 
-_default_client: Optional[OllamaClient] = None
+_default_client: OllamaClient | None = None
 
 
 def get_client() -> OllamaClient:

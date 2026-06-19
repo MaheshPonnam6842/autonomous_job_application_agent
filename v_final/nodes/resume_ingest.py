@@ -1,12 +1,11 @@
-from v_final.state.job_application_state import JobApplicationState, ResumeSections
 from utils.link_extractor import extract_pdf_links
 from utils.text_normalization import (
-        extract_grouped_bullets,
-        normalize_text,
-        split_by_sections,
-        parse_skills,
-        ) 
-
+    extract_grouped_bullets,
+    normalize_text,
+    parse_skills,
+    split_by_sections,
+)
+from v_final.state.job_application_state import JobApplicationState, ResumeSections
 
 
 def resume_ingest_node(state: JobApplicationState) -> JobApplicationState:
@@ -37,7 +36,7 @@ def resume_ingest_node(state: JobApplicationState) -> JobApplicationState:
     """
 
     raw_resume = state.get("resume_raw_text", "") or ""
-    source = state.get("resume_source", "upload")  # kept for future use
+    state.get("resume_source", "upload")  # kept for future use
 
     # 1) Normalize + section split
     clean_text = normalize_text(raw_resume)

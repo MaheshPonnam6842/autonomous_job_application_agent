@@ -1,12 +1,12 @@
 import os
+import threading
 import uuid
-from threading import Thread
-from flask import Flask, render_template, request, jsonify
+
+from flask import Flask, jsonify, render_template, request
 from werkzeug.utils import secure_filename
 
 from v_final.graph.analysis_graph import build_analysis_graph
 from v_final.graph.rewrite_graph import build_rewrite_graph
-
 
 # App setup
 
@@ -14,15 +14,17 @@ app = Flask(__name__)
 
 UPLOAD_FOLDER = "uploads"
 ALLOWED_EXTENSIONS = {"txt", "pdf"}
+MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5 MB upload cap
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
 
 analysis_graph = build_analysis_graph()
 rewrite_graph = build_rewrite_graph()
 
-# In-memory job store (V1)
-JOBS = {}
+# In-memory job store for async rewrite (single-worker deployment).
+JOBS: dict[str, dict] = {}
 
 
 # Helpers
@@ -33,16 +35,16 @@ def allowed_file(filename: str) -> bool:
 
 def read_resume_file(filepath: str) -> str:
     if filepath.endswith(".txt"):
-        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
             return f.read()
 
     if filepath.endswith(".pdf"):
         from PyPDF2 import PdfReader
+
         reader = PdfReader(filepath)
         return "\n".join(page.extract_text() or "" for page in reader.pages)
 
     return ""
-
 
 
 # Routes
@@ -93,23 +95,16 @@ def analyze():
     })
 
 
-import uuid
-import threading
-
-JOBS = {}
-
 @app.route("/rewrite", methods=["POST"])
 def rewrite():
     state = request.json
     job_id = str(uuid.uuid4())
-
     JOBS[job_id] = {"status": "running"}
 
     def run_rewrite():
         try:
             print(f"[JOB {job_id}] Rewrite started")
             result = rewrite_graph.invoke(state)
-
             JOBS[job_id] = {
                 "status": "done",
                 "result": {
@@ -119,16 +114,12 @@ def rewrite():
                 },
             }
             print(f"[JOB {job_id}] Rewrite completed")
-
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - surface failure to the poller
             JOBS[job_id] = {"status": "error", "error": str(e)}
             print(f"[JOB {job_id}] Rewrite failed: {e}")
 
     threading.Thread(target=run_rewrite, daemon=True).start()
-
-    #  REQUIRED RETURN
     return {"job_id": job_id}
-
 
 
 @app.route("/rewrite/status/<job_id>")
@@ -137,4 +128,8 @@ def rewrite_status(job_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(
+        host=os.getenv("HOST", "127.0.0.1"),
+        port=int(os.getenv("PORT", "5000")),
+        debug=os.getenv("FLASK_DEBUG", "0") == "1",
+    )

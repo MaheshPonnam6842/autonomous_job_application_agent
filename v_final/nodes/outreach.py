@@ -10,8 +10,6 @@ Writes: outreach_dm_text, outreach_email_text
 
 from __future__ import annotations
 
-from typing import List
-
 from v_final.llm import get_client
 from v_final.state.job_application_state import JobApplicationState
 
@@ -21,7 +19,7 @@ _POLISH_SYSTEM = (
 )
 
 
-def _build_base_dm(strong_matches: List[str]) -> str:
+def _build_base_dm(strong_matches: list[str]) -> str:
     highlights = ", ".join(strong_matches[:3]) if strong_matches else "relevant experience"
     return (
         "Hi {recruiter_name},\n\n"
@@ -32,7 +30,7 @@ def _build_base_dm(strong_matches: List[str]) -> str:
     )
 
 
-def _build_base_email(strong_matches: List[str]) -> str:
+def _build_base_email(strong_matches: list[str]) -> str:
     highlights = ", ".join(strong_matches[:4]) if strong_matches else "relevant experience"
     return (
         "Subject: Application Follow-Up\n\n"
