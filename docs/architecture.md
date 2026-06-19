@@ -8,6 +8,7 @@ pure `state -> state` function; the graph wires them together.
 
 ```
 config.py        env-driven settings: models, scoring weights, thresholds, paths
+utils/           shared deterministic parsing (sections, bullets, structured entries)
 llm/             OllamaClient: retries, JSON-mode structured output, embeddings,
                  availability probing, graceful degradation  (nodes never import ollama)
 state/           the typed contract every node reads and writes
@@ -21,6 +22,7 @@ pipeline.py      programmatic entrypoint + human-readable report
 | Node | Reads | Writes | LLM? |
 |------|-------|--------|------|
 | `resume_ingest` | `resume_raw_text`, `resume_pdf_path?` | `resume_clean_text`, `resume_sections`, `experience/project_bullets[_by_group]`, `resume_skills_structured`, `resume_links` | no |
+| `resume_structure` | `resume_sections` | `experience_entries`, `project_entries`, `education_entries` (typed) | no |
 | `jd_ingest` | `job_description_text` | `jd_clean_text`, `jd_title`, `jd_domain`, `jd_seniority_level`, `jd_skills_required/preferred`, `jd_tools_process`, `jd_responsibilities`, `jd_keywords` | **yes** (validated) |
 | `skill_extraction` | resume + jd text/skills | `resume_skill_profile`, `jd_skill_profile`, `skill_overlap`, `skill_gap_hard`, `skill_gap_soft` | no |
 | `matching` | skill profiles, clean texts | `skill_match_score`, `semantic_similarity_score`, `ats_match_score`, `overall_match_score`, `score_breakdown`, `matched_skills`, `missing_required_skills` | embeddings (optional) |

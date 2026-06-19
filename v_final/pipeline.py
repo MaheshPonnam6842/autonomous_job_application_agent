@@ -42,6 +42,12 @@ def format_report(state: JobApplicationState) -> str:
         f"JD title      : {state.get('jd_title') or '(unknown)'}",
         f"JD domain     : {state.get('jd_domain')}   seniority: {state.get('jd_seniority_level')}",
         "",
+        "RESUME STRUCTURE",
+        f"  experience : {len(state.get('experience_entries', []) or [])} entries "
+        f"({', '.join(e.get('company', '?') for e in state.get('experience_entries', []) or []) or '-'})",
+        f"  projects   : {len(state.get('project_entries', []) or [])} entries",
+        f"  education  : {len(state.get('education_entries', []) or [])} entries",
+        "",
         "SCORES",
         f"  skill match     : {sb.get('skill_match', state.get('skill_match_score'))}",
         f"  semantic sim    : {sb.get('semantic_similarity', state.get('semantic_similarity_score'))}",

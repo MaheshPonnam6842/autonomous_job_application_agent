@@ -23,6 +23,7 @@ hardened incrementally:
 ```
 START
   └─ resume_ingest      normalize, section-split, extract bullets & skills
+     └─ resume_structure parse typed experience / project / education entries
        └─ jd_ingest     LLM → validated structured JD (skills/responsibilities/seniority)
             └─ skill_extraction   canonical skill profiles + overlap/gaps
                  └─ matching      skill + semantic + ATS  →  weighted overall score
