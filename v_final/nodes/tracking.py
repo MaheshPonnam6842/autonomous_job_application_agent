@@ -25,6 +25,7 @@ _SUMMARY_KEYS = (
     "skill_gap_hard", "skill_gap_soft",
     "rewrite_required", "rewrite_strategy", "rewrite_reason",
     "resume_version", "warnings",
+    "rewrite_attempts", "rewrite_candidates", "rewrite_score_comparison",
 )
 
 

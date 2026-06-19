@@ -28,10 +28,17 @@ _STRATEGY_SCOPE = {
 }
 
 
-def _build_rewrite_prompt(resume_text: str, jd_text: str,
-                          missing_skills: list[str], strategy: str) -> str:
+def _build_rewrite_prompt(resume_text: str, jd_text: str, missing_skills: list[str],
+                          strategy: str, feedback_terms: list[str] | None = None) -> str:
     missing = ", ".join(missing_skills) if missing_skills else "None"
     scope = _STRATEGY_SCOPE.get(strategy, _STRATEGY_SCOPE["full_rewrite"])
+    feedback_block = ""
+    if feedback_terms:
+        feedback_block = (
+            "\nREVISION FEEDBACK: a previous draft under-used these skills that ALREADY "
+            "appear in the resume. Surface them more explicitly (in the summary, skills, "
+            "or bullets) WITHOUT inventing anything new:\n" + ", ".join(feedback_terms) + "\n"
+        )
     return f"""
 You are a factual resume editor. Rewrite the resume to better match the job description.
 
@@ -53,7 +60,7 @@ Job Description (target keywords and responsibilities):
 
 Skills underrepresented vs the JD (for emphasis only, never invention):
 {missing}
-
+{feedback_block}
 OUTPUT FORMAT
 Return ONLY the rewritten resume, using these sections in order:
 1) NAME + CONTACT (one line)
@@ -86,9 +93,16 @@ def resume_rewrite_node(state: JobApplicationState) -> JobApplicationState:
     strategy = state.get("rewrite_strategy", "full_rewrite")
     missing = state.get("missing_required_skills", []) or []
 
-    prompt = _build_rewrite_prompt(resume_text, jd_text, missing, strategy)
+    # Iterative loop bookkeeping: later attempts get feedback and a little more
+    # temperature so retries actually differ from the first draft.
+    attempt = int(state.get("rewrite_attempts", 0))
+    feedback = state.get("rewrite_feedback_terms", []) or []
+    temperature = min(0.5, 0.2 + 0.1 * attempt)
+
+    prompt = _build_rewrite_prompt(resume_text, jd_text, missing, strategy, feedback_terms=feedback)
     result = get_client().chat(
-        _SYSTEM, prompt, model=settings.llm.rewrite_model, temperature=0.2, num_predict=900
+        _SYSTEM, prompt, model=settings.llm.rewrite_model,
+        temperature=temperature, num_predict=900,
     )
 
     if result.ok and result.text:

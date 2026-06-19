@@ -111,6 +111,8 @@ def rewrite():
                     "optimized_resume_text": result.get("optimized_resume_text"),
                     "outreach_dm_text": result.get("outreach_dm_text"),
                     "outreach_email_text": result.get("outreach_email_text"),
+                    "rewrite_score_comparison": result.get("rewrite_score_comparison"),
+                    "rewrite_attempts": result.get("rewrite_attempts"),
                 },
             }
             print(f"[JOB {job_id}] Rewrite completed")

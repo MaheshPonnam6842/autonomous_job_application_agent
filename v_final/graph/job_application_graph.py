@@ -1,7 +1,11 @@
 """End-to-end LangGraph pipeline for the v_final agent.
 
-START -> resume_ingest -> jd_ingest -> skill_extraction -> matching -> decision
-      -> (rewrite | skip) -> outreach -> tracking -> END
+START -> resume_ingest -> resume_structure -> jd_ingest -> skill_extraction
+      -> matching -> decision -> (rewrite <-> rewrite_loop | skip) -> outreach
+      -> tracking -> END
+
+The rewrite_loop forms a cycle with resume_rewrite: it scores each candidate and
+retries (up to a cap) while the score keeps improving, then proceeds to outreach.
 """
 
 from langgraph.graph import END, START, StateGraph
@@ -13,6 +17,7 @@ from v_final.nodes.outreach import outreach_node
 from v_final.nodes.resume_ingest import resume_ingest_node
 from v_final.nodes.resume_rewrite import resume_rewrite_node
 from v_final.nodes.resume_structure import resume_structure_node
+from v_final.nodes.rewrite_loop import improve_router, rewrite_loop_node
 from v_final.nodes.skill_extraction import skill_extraction_node
 from v_final.nodes.tracking import tracking_node
 from v_final.state.job_application_state import JobApplicationState
@@ -32,6 +37,7 @@ def build_graph():
     builder.add_node("matching", matching_node)
     builder.add_node("decision", decision_node)
     builder.add_node("resume_rewrite", resume_rewrite_node)
+    builder.add_node("rewrite_loop", rewrite_loop_node)
     builder.add_node("outreach", outreach_node)
     builder.add_node("tracking", tracking_node)
 
@@ -44,7 +50,10 @@ def build_graph():
     builder.add_conditional_edges(
         "decision", rewrite_router, {"rewrite": "resume_rewrite", "skip": "outreach"}
     )
-    builder.add_edge("resume_rewrite", "outreach")
+    builder.add_edge("resume_rewrite", "rewrite_loop")
+    builder.add_conditional_edges(
+        "rewrite_loop", improve_router, {"retry": "resume_rewrite", "done": "outreach"}
+    )
     builder.add_edge("outreach", "tracking")
     builder.add_edge("tracking", END)
 

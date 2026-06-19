@@ -209,6 +209,12 @@
         <button class="copybtn" onclick="copyText('resumeOut')">Copy</button>
       </div>
       <div id="rewriteStatus" class="status"></div>
+
+      <div id="impactBlock" class="hidden" style="margin:2px 0 18px;">
+        <p class="meta">ATS impact <span id="impactAttempts" style="text-transform:none; letter-spacing:0; color:var(--muted);"></span></p>
+        <div class="bars" id="impactBars"></div>
+      </div>
+
       <pre class="resume hidden" id="resumeOut"></pre>
 
       <div class="grid hidden" id="outreachBlock" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); margin-top:18px;">
@@ -352,6 +358,7 @@ async function rewrite(){
   $("rewriteCard").classList.remove("hidden");
   $("resumeOut").classList.add("hidden");
   $("outreachBlock").classList.add("hidden");
+  $("impactBlock").classList.add("hidden");
   $("rewriteStatus").innerHTML = '<span class="spinner"></span> Generating scoped rewrite and outreach…';
   $("rewriteCard").scrollIntoView({behavior:"smooth", block:"start"});
 
@@ -366,6 +373,7 @@ async function rewrite(){
         $("rewriteStatus").innerHTML = "";
         $("resumeOut").textContent = d.result.optimized_resume_text || "(no output)";
         $("resumeOut").classList.remove("hidden");
+        renderImpact(d.result);
         $("dmOut").textContent = d.result.outreach_dm_text || "";
         $("emailOut").textContent = d.result.outreach_email_text || "";
         $("outreachBlock").classList.remove("hidden");
@@ -381,6 +389,24 @@ async function rewrite(){
     finishRewrite();
   }
 }
+function renderImpact(result){
+  const cmp = result.rewrite_score_comparison;
+  if(!cmp){ $("impactBlock").classList.add("hidden"); return; }
+  $("impactAttempts").textContent = "· best of " + (result.rewrite_attempts || 1) + " attempt(s)";
+  const order = [["ATS keywords","ats_match"],["Overall match","overall"],
+                 ["Skill coverage","skill_match"],["Semantic","semantic_similarity"]];
+  $("impactBars").innerHTML = order.map(([label,key]) => {
+    const c = cmp[key]; if(!c) return "";
+    const before = pct(c.before), after = pct(c.after), delta = Math.round((c.delta||0)*100);
+    const sign = delta > 0 ? "+" : "";
+    const dcol = delta > 0 ? "var(--mint)" : (delta < 0 ? "var(--coral)" : "var(--muted)");
+    return `<div class="bar"><div class="top"><span>${label}</span>
+      <b>${before}% → ${after}% <span style="color:${dcol}">(${sign}${delta}%)</span></b></div>
+      <div class="track"><div class="fill" style="width:${after}%"></div></div></div>`;
+  }).join("");
+  $("impactBlock").classList.remove("hidden");
+}
+
 function finishRewrite(){ setBusy(false); $("rewriteBtn").textContent = "Rewrite & outreach"; }
 
 function copyText(id){

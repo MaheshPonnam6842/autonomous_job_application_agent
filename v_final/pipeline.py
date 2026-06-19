@@ -62,6 +62,18 @@ def format_report(state: JobApplicationState) -> str:
         f"  reason          : {state.get('rewrite_reason')}",
         f"  resume_version  : {state.get('resume_version')}",
     ]
+
+    cmp = state.get("rewrite_score_comparison")
+    if cmp:
+        lines += ["", f"REWRITE IMPACT  (best of {state.get('rewrite_attempts', 0)} attempt(s))"]
+        for label, key in [("ATS", "ats_match"), ("overall", "overall"),
+                           ("skill", "skill_match"), ("semantic", "semantic_similarity")]:
+            c = cmp.get(key)
+            if c:
+                d = c.get("delta", 0.0)
+                sign = "+" if d > 0 else ""
+                lines.append(f"  {label:9s}: {c.get('before')} -> {c.get('after')}  ({sign}{d})")
+
     if state.get("warnings"):
         lines += ["", "WARNINGS:"] + [f"  - {w}" for w in state["warnings"]]
     if state.get("run_artifact_path"):

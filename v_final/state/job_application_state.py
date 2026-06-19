@@ -112,6 +112,20 @@ class JobApplicationState(TypedDict, total=False):
     resume_version: str                 # original | rewritten | rewrite_failed_fallback
     rewrite_error: str | None
 
+    # Iterative rewrite loop + before/after scoring
+    rewrite_attempts: int
+    rewrite_improved: bool              # did the latest candidate beat the best?
+    rewrite_feedback_terms: list[str]   # JD skills present but under-surfaced
+    best_resume_text: str
+    baseline_scores: dict[str, float]   # original resume, text-based scorer
+    best_scores: dict[str, float]       # best candidate so far
+    rewrite_candidates: list[dict]      # per-attempt scores (audit)
+    optimized_skill_match_score: float
+    optimized_semantic_similarity_score: float
+    optimized_ats_match_score: float
+    optimized_overall_match_score: float
+    rewrite_score_comparison: dict[str, dict[str, float]]  # metric -> {before, after, delta}
+
     # 10. Outreach Outputs
     outreach_dm_text: str
     outreach_email_text: str

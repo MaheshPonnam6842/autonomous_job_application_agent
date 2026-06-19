@@ -90,10 +90,24 @@ class DecisionConfig:
 
 
 @dataclass(frozen=True)
+class RewriteConfig:
+    """Controls the iterative rewrite-and-rescore loop."""
+
+    # How many rewrite attempts to make (each is one LLM call). The loop keeps the
+    # best-scoring candidate and stops early once an attempt fails to improve it.
+    max_attempts: int = _env_int("JOBAGENT_REWRITE_MAX_ATTEMPTS", 3)
+    # Which score to optimize. Tie broken by overall_match.
+    target_metric: str = _env_str("JOBAGENT_REWRITE_TARGET", "ats_match")
+    # Minimum improvement over the current best to count as progress.
+    min_gain: float = _env_float("JOBAGENT_REWRITE_MIN_GAIN", 0.0)
+
+
+@dataclass(frozen=True)
 class Settings:
     llm: LLMConfig
     scoring: ScoringConfig
     decision: DecisionConfig
+    rewrite: RewriteConfig
     artifacts_dir: Path
     log_level: str
 
@@ -104,6 +118,7 @@ def load_settings() -> Settings:
         llm=LLMConfig(),
         scoring=ScoringConfig(),
         decision=DecisionConfig(),
+        rewrite=RewriteConfig(),
         artifacts_dir=artifacts,
         log_level=_env_str("JOBAGENT_LOG_LEVEL", "INFO"),
     )
