@@ -9,6 +9,7 @@ _JD_STATE = {
     "jd_clean_text": "python sql aws docker kubernetes",
     "jd_skill_profile": {"hard_skills": ["python", "sql"], "cloud": ["aws"], "tools": ["docker", "kubernetes"]},
     "jd_skills_required": ["python", "sql", "aws", "docker", "kubernetes"],
+    "jd_ats_keywords": ["python", "sql", "aws", "docker", "kubernetes"],
 }
 
 

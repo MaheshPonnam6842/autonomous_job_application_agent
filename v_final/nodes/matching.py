@@ -69,21 +69,22 @@ def _semantic_similarity(resume_text: str, jd_text: str) -> float:
     return _lexical_cosine(resume_text, jd_text)  # deterministic fallback
 
 
-def _ats_score(state: JobApplicationState, resume_set: set[str]) -> float:
-    terms: set[str] = set()
-    for key in ("jd_skills_required", "jd_skills_preferred", "jd_keywords"):
-        for t in state.get(key, []) or []:
-            c = _canon(t)
-            if c:
-                terms.add(c)
-    # Always include the vocab-detected JD skills so ATS stays meaningful even when
-    # the LLM keyword lists are empty (e.g. Ollama offline) — otherwise a resume
-    # that clearly matches the JD would wrongly score 0% ATS.
-    terms |= _flatten(state.get("jd_skill_profile") or {})
-    if not terms:
+def _keyword_in_text(kw: str, text_low: str) -> bool:
+    """Token-boundary keyword presence (so 'r' doesn't match 'react')."""
+    pat = r"(?<![a-z0-9+#])" + re.escape(kw) + r"(?![a-z0-9+#])"
+    return re.search(pat, text_low) is not None
+
+
+def _ats_score(state: JobApplicationState, resume_text: str) -> float:
+    """Real ATS keyword match: fraction of the JD's keywords present in the resume
+    TEXT. Measured against ``jd_ats_keywords`` (deterministic JD extraction, works
+    offline), and recomputed on the rewritten text so the after-score actually moves."""
+    kws = state.get("jd_ats_keywords") or []
+    if not kws:
         return 0.0
-    present = sum(1 for t in terms if t in resume_set)
-    return present / len(terms)
+    low = (resume_text or "").lower()
+    present = sum(1 for kw in kws if _keyword_in_text(kw, low))
+    return present / len(kws)
 
 
 def ats_pass_estimate(ats: float, missing_required: int) -> float:
@@ -117,7 +118,7 @@ def score_resume_against_jd(resume_text: str, state: JobApplicationState) -> dic
 
     skill_match = len(resume_set & jd_set) / len(jd_set) if jd_set else 0.0
     semantic = _semantic_similarity(resume_text, jd_text)
-    ats = _ats_score(state, resume_set)
+    ats = _ats_score(state, resume_text)
     w_skill, w_sem, w_ats = settings.scoring.normalized
     overall = w_skill * skill_match + w_sem * semantic + w_ats * ats
 
@@ -142,7 +143,7 @@ def matching_node(state: JobApplicationState) -> JobApplicationState:
     resume_text = state.get("resume_clean_text") or state.get("resume_raw_text", "")
     jd_text = state.get("jd_clean_text") or state.get("job_description_text", "")
     semantic = _semantic_similarity(resume_text, jd_text)
-    ats = _ats_score(state, resume_set)
+    ats = _ats_score(state, resume_text)
 
     w_skill, w_sem, w_ats = settings.scoring.normalized
     overall = w_skill * skill_match + w_sem * semantic + w_ats * ats
@@ -166,4 +167,9 @@ def matching_node(state: JobApplicationState) -> JobApplicationState:
     }
     state["matched_skills"] = sorted(resume_set & jd_set)
     state["missing_required_skills"] = missing_required
+    # ATS keywords the JD wants that aren't in the resume text — what to gap-fill.
+    low = resume_text.lower()
+    state["missing_ats_keywords"] = [
+        kw for kw in (state.get("jd_ats_keywords") or []) if not _keyword_in_text(kw, low)
+    ]
     return state

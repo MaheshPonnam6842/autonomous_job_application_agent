@@ -133,6 +133,57 @@ def _scan_vocab(text: str) -> list[str]:
     return found
 
 
+# Words that look capitalized/technical but aren't skills — excluded from keywords.
+_KW_STOP = {
+    "experience", "experienced", "work", "working", "team", "teams", "role", "job",
+    "company", "year", "years", "skill", "skills", "ability", "abilities", "strong",
+    "plus", "required", "preferred", "knowledge", "understanding", "including", "etc",
+    "new", "using", "data", "build", "building", "develop", "developing", "design",
+    "designing", "support", "us", "usa", "eu", "uk", "phd", "bs", "ms", "ba", "mba",
+    "and", "or", "the", "you", "your", "our", "we", "a", "an", "of", "to", "in", "on",
+    "as", "by", "is", "be", "it", "at", "do", "ie", "eg", "ll", "ai",
+    "must", "have", "want", "need", "looking", "seeking", "join", "help", "across",
+    "senior", "junior", "lead", "manager", "engineer", "scientist", "analyst", "developer",
+}
+_TECH_RE = re.compile(
+    r"[A-Za-z][a-z0-9]*[A-Z][A-Za-z0-9+#.]*"   # camel/PascalCase: PostgreSQL, FastAPI
+    r"|[A-Z]{2,}[A-Za-z0-9+#.]*"               # acronyms: SQL, AWS, ETL, S3
+    r"|[A-Za-z]+\+\+|[A-Za-z]+#"               # C++, C#
+)
+_KW_INDICATOR_RE = re.compile(
+    r"(?:experience (?:with|in|using)|proficien\w+ (?:in|with)|knowledge of|"
+    r"familiar(?:ity)? with|skilled in|expertise in|hands[- ]on (?:with|experience)|"
+    r"working (?:with|knowledge of)|use of|using)\s+([A-Za-z0-9 ,/&+#-]{2,100})",
+    re.IGNORECASE,
+)
+
+
+def extract_jd_keywords(jd_text: str) -> set[str]:
+    """Deterministically pull ATS-relevant keywords from a JD: known skills, tech
+    tokens (PostgreSQL, FastAPI, SQL, C++), and short phrases after skill indicators
+    ('experience with X', 'proficiency in Y'). Domain-agnostic and offline."""
+    if not jd_text:
+        return set()
+    out: set[str] = set(_scan_vocab(jd_text))
+    for m in _TECH_RE.finditer(jd_text):
+        t = _canon(m.group(0))
+        if t and t not in _KW_STOP and 2 <= len(t) <= 30:
+            out.add(t)
+    for m in _KW_INDICATOR_RE.finditer(jd_text):
+        for part in re.split(r"[,/&]|\band\b|\bor\b", m.group(1)):
+            words = _canon(part).split()
+            while words and words[-1] in _KW_STOP:   # strip "... required/experience/plus"
+                words.pop()
+            while words and words[0] in _KW_STOP:
+                words.pop(0)
+            t = " ".join(words)
+            if t and t not in _KW_STOP and 2 <= len(t) <= 30 and len(t.split()) <= 3:
+                out.add(t)
+    out = {k for k in out if k and k not in _KW_STOP}
+    # Drop tiny fragments that are substrings of a real keyword (e.g. truncated 'ka' vs 'kafka').
+    return {k for k in out if not (len(k) <= 2 and any(k != o and k in o for o in out))}
+
+
 def _resume_terms(state: JobApplicationState) -> list[str]:
     terms: list[str] = []
     for key, vals in (state.get("resume_skills_structured") or {}).items():
@@ -180,8 +231,18 @@ def skill_extraction_node(state: JobApplicationState) -> JobApplicationState:
             target = gap_hard if cat in _HARD_CATS else gap_soft
             target[cat] = missing
 
+    # ATS keyword set: deterministic JD extraction (works offline) unioned with any
+    # LLM-extracted skills. This is what the ATS score is measured against.
+    ats_keywords = extract_jd_keywords(state.get("jd_clean_text", "") or "")
+    for key in ("jd_skills_required", "jd_skills_preferred", "jd_keywords", "jd_tools_process"):
+        for t in state.get(key, []) or []:
+            c = _canon(t)
+            if c and c not in _KW_STOP:
+                ats_keywords.add(c)
+
     state["resume_skill_profile"] = resume_profile
     state["jd_skill_profile"] = jd_profile
+    state["jd_ats_keywords"] = sorted(ats_keywords)
     state["skill_overlap"] = overlap
     state["skill_gap_hard"] = gap_hard
     state["skill_gap_soft"] = gap_soft

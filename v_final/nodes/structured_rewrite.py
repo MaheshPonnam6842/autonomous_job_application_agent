@@ -97,10 +97,12 @@ def _build_prompt(state: JobApplicationState, entries: list[dict],
     gap_block = ""
     if gap_experience:
         gap_block = (
-            "\nUSER-PROVIDED EXPERIENCE (the candidate typed this about skills that were "
-            "missing from the resume — it is TRUE and user-supplied, so you MAY use it). "
-            "Write 1-3 factual Google-XYZ bullets strictly from it into \"added_bullets\"; "
-            "do NOT add anything the user did not state:\n" + gap_experience + "\n"
+            "\nUSER-PROVIDED EXPERIENCE (the candidate typed this about skills missing from "
+            "the resume — TRUE and user-authorized). Write 1-3 Google-XYZ bullets into "
+            "\"added_bullets\" based on it. EXCEPTION to rule 2 for these bullets only: each "
+            "MUST include a realistic, specific metric (%, count, time saved, or $) — use the "
+            "user's number if they gave one, otherwise a believable estimate they can adjust. "
+            "Stay within the scope of what the user described:\n" + gap_experience + "\n"
         )
 
     return f"""

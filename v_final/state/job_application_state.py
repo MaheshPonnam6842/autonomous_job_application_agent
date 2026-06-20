@@ -81,6 +81,7 @@ class JobApplicationState(TypedDict, total=False):
     # 6. Skill Intelligence
     resume_skill_profile: SkillProfile
     jd_skill_profile: SkillProfile
+    jd_ats_keywords: list[str]          # the keyword set ATS scoring is measured against
 
     skill_overlap: dict[str, list[str]]     # category → matched
     skill_gap_hard: dict[str, list[str]]
@@ -96,6 +97,7 @@ class JobApplicationState(TypedDict, total=False):
     score_breakdown: dict[str, float]
     missing_required_skills: list[str]
     matched_skills: list[str]
+    missing_ats_keywords: list[str]     # JD ATS keywords absent from the resume text
 
     # 8. Decision & Strategy
     rewrite_required: bool

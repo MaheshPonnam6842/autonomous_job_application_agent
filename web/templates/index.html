@@ -196,7 +196,7 @@
           <p class="meta" id="gapLabel">Have real experience with these? Add it — we'll write factual XYZ bullets from your words</p>
           <textarea id="gapInput" style="min-height:90px;"
             placeholder="e.g. At BetaCorp I containerized 5 services with Docker and deployed them on AWS ECS, cutting release time by 30%."></textarea>
-          <p class="reason" style="margin-top:6px;">Only what you type here is used — nothing is invented. Then click <b>Rewrite &amp; outreach</b>.</p>
+          <p class="reason" style="margin-top:6px;">We turn this into XYZ bullets with a realistic number you can fine-tune — based only on what you describe. Then click <b>Rewrite &amp; outreach</b>.</p>
         </div>
       </section>
 
@@ -345,10 +345,13 @@ function render(s){
   // Gap-fill: when required/hard skills are missing, invite the user to supply real experience
   const hardGaps = [];
   for(const cat in (s.skill_gap_hard || {})) (s.skill_gap_hard[cat] || []).forEach(x => hardGaps.push(x));
-  const gapKeywords = [...new Set([...(s.missing_required_skills || []), ...hardGaps])];
+  const gapKeywords = (s.missing_ats_keywords && s.missing_ats_keywords.length)
+    ? s.missing_ats_keywords
+    : [...new Set([...(s.missing_required_skills || []), ...hardGaps])];
   if(gapKeywords.length){
-    $("gapLabel").innerHTML = "Missing keywords: <b>" + gapKeywords.slice(0,8).map(esc).join(", ") +
-      "</b>. Have real experience with any? Describe it — we'll write factual XYZ bullets from your words.";
+    $("gapLabel").innerHTML = "These JD keywords are missing from your resume: <b>" +
+      gapKeywords.slice(0,12).map(esc).join(", ") + "</b>.<br>Did you do any of this in your experience? " +
+      "Tell me what you did, and I'll turn it into a Google-XYZ bullet with a realistic number you can adjust.";
     $("gapFill").classList.remove("hidden");
   } else { $("gapFill").classList.add("hidden"); }
 
