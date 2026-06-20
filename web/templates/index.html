@@ -411,8 +411,10 @@ async function rewrite(){
     const res = await fetch("/rewrite", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(cachedState) });
     const { job_id } = await res.json();
     lastJobId = job_id;
+    if(!job_id){ $("rewriteStatus").innerHTML = '<span class="err">Rewrite did not start — try again.</span>'; finishRewrite(); return; }
     const poll = setInterval(async () => {
       const r = await fetch(`/rewrite/status/${job_id}`);
+      if(!r.ok){ clearInterval(poll); $("rewriteStatus").innerHTML = '<span class="err">Lost the rewrite job — reload and retry.</span>'; finishRewrite(); return; }
       const d = await r.json();
       if(d.status === "done"){
         clearInterval(poll);
