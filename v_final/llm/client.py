@@ -68,11 +68,13 @@ class OllamaClient:
         return self._client
 
     def available(self, force: bool = False) -> bool:
-        """True if the model server answers. Cached after the first probe."""
+        """True if the model server answers. Only the *positive* result is cached —
+        a 'down' result is re-probed each call (the probe fails fast) so the agent
+        self-heals when Ollama is started after the server."""
         if not self.cfg.enabled:
             return False
-        if self._available is not None and not force:
-            return self._available
+        if self._available is True and not force:
+            return True
         try:
             self.client.list()
             self._available = True

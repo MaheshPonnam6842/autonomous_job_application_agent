@@ -23,10 +23,6 @@ from v_final.nodes.tracking import tracking_node
 from v_final.state.job_application_state import JobApplicationState
 
 
-def rewrite_router(state: JobApplicationState) -> str:
-    return "rewrite" if state.get("rewrite_required") else "skip"
-
-
 def build_graph():
     builder = StateGraph(JobApplicationState)
 
@@ -47,9 +43,9 @@ def build_graph():
     builder.add_edge("jd_ingest", "skill_extraction")
     builder.add_edge("skill_extraction", "matching")
     builder.add_edge("matching", "decision")
-    builder.add_conditional_edges(
-        "decision", rewrite_router, {"rewrite": "resume_rewrite", "skip": "outreach"}
-    )
+    # Always run the rewrite node: it reformats (no LLM) on a strong fit and rewrites
+    # otherwise, so every run yields the optimized resume, .docx, and before/after scores.
+    builder.add_edge("decision", "resume_rewrite")
     builder.add_edge("resume_rewrite", "rewrite_loop")
     builder.add_conditional_edges(
         "rewrite_loop", improve_router, {"retry": "resume_rewrite", "done": "outreach"}

@@ -76,6 +76,10 @@ def _ats_score(state: JobApplicationState, resume_set: set[str]) -> float:
             c = _canon(t)
             if c:
                 terms.add(c)
+    # Always include the vocab-detected JD skills so ATS stays meaningful even when
+    # the LLM keyword lists are empty (e.g. Ollama offline) — otherwise a resume
+    # that clearly matches the JD would wrongly score 0% ATS.
+    terms |= _flatten(state.get("jd_skill_profile") or {})
     if not terms:
         return 0.0
     present = sum(1 for t in terms if t in resume_set)
