@@ -77,13 +77,16 @@ class StructuredRewrite(BaseModel):
     summary: str = ""
     skills: list[str] = Field(default_factory=list)
     experience: list[RewrittenExperience] = Field(default_factory=list)
+    # XYZ bullets written from experience the USER supplied for missing skills
+    # (factual, user-provided — not invented from the resume).
+    added_bullets: list[str] = Field(default_factory=list)
 
     @field_validator("summary", mode="before")
     @classmethod
     def _coerce_summary(cls, v: object) -> str:
         return str(v).strip() if v is not None else ""
 
-    @field_validator("skills", mode="before")
+    @field_validator("skills", "added_bullets", mode="before")
     @classmethod
-    def _coerce_skills(cls, v: object) -> list[str]:
+    def _coerce_lists(cls, v: object) -> list[str]:
         return _as_str_list(v)

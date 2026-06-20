@@ -57,6 +57,7 @@ class OllamaClient:
         self._client = None
         self._available: bool | None = None  # tri-state cache
         self._embed_cache: dict[str, list[float]] = {}  # memoized embeddings
+        self._embed_ok: bool | None = None  # None=unknown, False=model missing (skip)
 
     @property
     def client(self):  # lazy import so the package loads without ollama installed
@@ -145,9 +146,11 @@ class OllamaClient:
         schema: type[T],
         *,
         model: str | None = None,
+        num_predict: int | None = None,
     ) -> T | None:
         """Return a validated ``schema`` instance, or ``None`` on any failure."""
-        res = self.chat(system, user, model=model, json_mode=True, temperature=0.1)
+        res = self.chat(system, user, model=model, json_mode=True,
+                        temperature=0.1, num_predict=num_predict)
         if not res.ok:
             return None
         raw = _extract_json_block(res.text)
@@ -172,6 +175,8 @@ class OllamaClient:
         """
         if not self.available() or not text.strip():
             return None
+        if self._embed_ok is False:   # embed model already proven missing — skip the round-trip
+            return None
         model = model or self.cfg.embed_model
         key = f"{model}:{hashlib.md5(text.encode('utf-8')).hexdigest()}"
         cached = self._embed_cache.get(key)
@@ -186,8 +191,10 @@ class OllamaClient:
             vec = [float(x) for x in emb] if emb else None
         except Exception as exc:  # noqa: BLE001
             logger.warning("embeddings failed (%s); semantic score will use lexical fallback", exc)
+            self._embed_ok = False   # don't retry a missing embed model this run
             return None
         if vec is not None:
+            self._embed_ok = True
             self._embed_cache[key] = vec
         return vec
 

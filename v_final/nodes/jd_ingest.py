@@ -13,6 +13,7 @@ Writes: jd_clean_text, jd_title, jd_domain, jd_seniority_level,
 
 from __future__ import annotations
 
+import hashlib
 import re
 from typing import Any
 
@@ -21,6 +22,12 @@ from v_final.llm import JDExtraction, get_client
 from v_final.state.job_application_state import JobApplicationState
 
 _SYSTEM = "Return JSON only. Follow the schema strictly. Canonicalize as instructed."
+
+# Memoize JD understanding by content hash: parsing the same JD twice (e.g. the
+# user tweaks the resume and re-analyzes) is the slowest repeated step, and it's
+# pure -> cache it. Bounded so it can't grow without limit.
+_JD_CACHE: dict[str, dict[str, Any]] = {}
+_JD_CACHE_MAX = 64
 
 
 def _build_jd_extract_prompt(jd_text: str) -> str:
@@ -83,8 +90,14 @@ def jd_ingest_node(state: JobApplicationState) -> JobApplicationState:
         state.setdefault("warnings", []).append("jd_ingest_skipped: empty job description")
         return state
 
+    cache_key = hashlib.md5(jd_clean.encode("utf-8")).hexdigest()
+    cached = _JD_CACHE.get(cache_key)
+    if cached is not None:
+        state.update(cached)
+        return state
+
     extraction = get_client().chat_structured(
-        _SYSTEM, _build_jd_extract_prompt(jd_clean), JDExtraction
+        _SYSTEM, _build_jd_extract_prompt(jd_clean), JDExtraction, num_predict=900
     )
     if extraction is None:
         state.setdefault("warnings", []).append(
@@ -103,12 +116,17 @@ def jd_ingest_node(state: JobApplicationState) -> JobApplicationState:
         re.sub(r"\s+", " ", r.strip()) for r in extraction.responsibilities if r.strip()
     ]
 
-    state["jd_title"] = extraction.jd_title
-    state["jd_domain"] = extraction.domain or "unknown"
-    state["jd_seniority_level"] = extraction.seniority_level or "unknown"
-    state["jd_skills_required"] = req
-    state["jd_skills_preferred"] = pref
-    state["jd_tools_process"] = tools
-    state["jd_responsibilities"] = responsibilities
-    state["jd_keywords"] = kw
+    fields: dict[str, Any] = {
+        "jd_title": extraction.jd_title,
+        "jd_domain": extraction.domain or "unknown",
+        "jd_seniority_level": extraction.seniority_level or "unknown",
+        "jd_skills_required": req,
+        "jd_skills_preferred": pref,
+        "jd_tools_process": tools,
+        "jd_responsibilities": responsibilities,
+        "jd_keywords": kw,
+    }
+    state.update(fields)
+    if len(_JD_CACHE) < _JD_CACHE_MAX:
+        _JD_CACHE[cache_key] = fields
     return state

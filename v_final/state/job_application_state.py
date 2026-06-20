@@ -66,6 +66,7 @@ class JobApplicationState(TypedDict, total=False):
     experience_bullets_by_group: dict[str, list[str]]
     project_bullets_by_group: dict[str, list[str]]
     resume_pdf_path: str                # optional path for PDF link extraction
+    gap_experience: str                 # user-provided real experience for missing skills
 
     # 5. Job Description Understanding
     jd_title: str

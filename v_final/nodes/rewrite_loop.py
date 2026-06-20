@@ -54,14 +54,25 @@ def rewrite_loop_node(state: JobApplicationState) -> JobApplicationState:
         state["baseline_scores"] = score_resume_against_jd(original_text, state)
 
     candidate_text = state.get("optimized_resume_text", "") or ""
-    real_rewrite = state.get("resume_version") == "rewritten" and bool(candidate_text.strip())
-    if not real_rewrite:
-        # Offline or failed rewrite: nothing to score; let the router end the loop.
+    if not candidate_text.strip():
         state["rewrite_attempts"] = int(state.get("rewrite_attempts", 0))
         state["rewrite_improved"] = False
         return state
 
+    # Always score the final resume so the UI gets a "new" ATS number — even for a
+    # strong-fit (no rewrite) or reformatted resume, where old and new may match.
     cand = score_resume_against_jd(candidate_text, state)
+    real_rewrite = state.get("resume_version") == "rewritten"
+
+    if not real_rewrite:
+        best = {m: cand[m] for m in _METRICS}
+        state["best_scores"] = best
+        state["best_resume_text"] = candidate_text
+        state["rewrite_attempts"] = int(state.get("rewrite_attempts", 0))
+        state["rewrite_improved"] = False
+        _finalize(state, best)
+        return state
+
     candidates = list(state.get("rewrite_candidates", []) or [])
     candidates.append({"attempt": len(candidates) + 1, **{m: cand[m] for m in _METRICS}})
     state["rewrite_candidates"] = candidates
@@ -79,9 +90,12 @@ def rewrite_loop_node(state: JobApplicationState) -> JobApplicationState:
     state["rewrite_attempts"] = int(state.get("rewrite_attempts", 0)) + 1
     state["rewrite_improved"] = improved
     state["rewrite_feedback_terms"] = _feedback_terms(state, candidate_text)
+    _finalize(state, state["best_scores"])
+    return state
 
-    # Finalize-so-far: outputs always reflect the best candidate + baseline delta.
-    best = state["best_scores"]
+
+def _finalize(state: JobApplicationState, best: dict) -> None:
+    """Publish the best candidate as the optimized output + a baseline delta."""
     baseline = state["baseline_scores"]
     state["optimized_resume_text"] = state["best_resume_text"]
     state["optimized_skill_match_score"] = best["skill_match"]
@@ -91,14 +105,9 @@ def rewrite_loop_node(state: JobApplicationState) -> JobApplicationState:
     state["optimized_ats_pass_score"] = best["ats_pass"]
     state["optimized_ats_pass_label"] = ats_pass_label(best["ats_pass"])
     state["rewrite_score_comparison"] = {
-        m: {
-            "before": baseline[m],
-            "after": best[m],
-            "delta": round(best[m] - baseline[m], 4),
-        }
+        m: {"before": baseline[m], "after": best[m], "delta": round(best[m] - baseline[m], 4)}
         for m in _METRICS
     }
-    return state
 
 
 def improve_router(state: JobApplicationState) -> str:

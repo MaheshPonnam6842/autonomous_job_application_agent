@@ -89,6 +89,15 @@
   .chip.gap{background:rgba(252,165,165,0.1); border-color:rgba(252,165,165,0.4); color:#ffd6d6;}
   .chip.muted{background:rgba(255,255,255,0.06); border-color:var(--border); color:var(--muted);}
 
+  .duo{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:0 0 18px;}
+  @media(max-width:520px){.duo{grid-template-columns:1fr;}}
+  .scorebox{border-radius:16px; padding:16px 18px; border:1px solid var(--border); background:rgba(2,20,16,0.5);}
+  .scorebox.after{border-color:var(--border-mint); background:rgba(94,234,212,0.08);}
+  .scorebox .lab{font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted2);}
+  .scorebox .big{font-size:34px; font-weight:700; margin-top:4px;}
+  .scorebox.after .big{color:var(--mint);}
+  .scorebox .sub{font-size:12.5px; color:var(--muted); margin-top:3px;}
+
   .pill{display:inline-flex; align-items:center; gap:8px; padding:9px 17px; border-radius:999px; font-weight:600; font-size:14px;}
   .pill.go{background:rgba(252,211,77,0.14); border:1px solid rgba(252,211,77,0.4); color:#fde9a9;}
   .pill.ok{background:rgba(94,234,212,0.16); border:1px solid var(--border-mint); color:#bff7ea;}
@@ -182,6 +191,13 @@
         <div class="chips" id="matched"></div>
         <p class="meta" style="margin-top:16px;">Gaps (in the job, not on your resume)</p>
         <div class="chips" id="missing"></div>
+
+        <div id="gapFill" class="hidden" style="margin-top:18px;">
+          <p class="meta" id="gapLabel">Have real experience with these? Add it — we'll write factual XYZ bullets from your words</p>
+          <textarea id="gapInput" style="min-height:90px;"
+            placeholder="e.g. At BetaCorp I containerized 5 services with Docker and deployed them on AWS ECS, cutting release time by 30%."></textarea>
+          <p class="reason" style="margin-top:6px;">Only what you type here is used — nothing is invented. Then click <b>Rewrite &amp; outreach</b>.</p>
+        </div>
       </section>
 
       <section class="card">
@@ -218,7 +234,8 @@
 
       <div id="impactBlock" class="hidden" style="margin:2px 0 18px;">
         <p class="meta">ATS impact <span id="impactAttempts" style="text-transform:none; letter-spacing:0; color:var(--muted);"></span></p>
-        <div id="impactHead" style="font-size:15px; margin:0 0 14px;"></div>
+        <div class="duo" id="scoreBoxes"></div>
+        <div id="impactHead" style="font-size:15px; margin:0 0 14px; color:var(--muted);"></div>
         <div class="bars" id="impactBars"></div>
       </div>
 
@@ -325,6 +342,16 @@ function render(s){
     ? gaps.map(x => `<span class="chip gap">${esc(x)}</span>`).join("")
     : `<span class="chip">none — your resume covers every JD skill detected</span>`;
 
+  // Gap-fill: when required/hard skills are missing, invite the user to supply real experience
+  const hardGaps = [];
+  for(const cat in (s.skill_gap_hard || {})) (s.skill_gap_hard[cat] || []).forEach(x => hardGaps.push(x));
+  const gapKeywords = [...new Set([...(s.missing_required_skills || []), ...hardGaps])];
+  if(gapKeywords.length){
+    $("gapLabel").innerHTML = "Missing keywords: <b>" + gapKeywords.slice(0,8).map(esc).join(", ") +
+      "</b>. Have real experience with any? Describe it — we'll write factual XYZ bullets from your words.";
+    $("gapFill").classList.remove("hidden");
+  } else { $("gapFill").classList.add("hidden"); }
+
   const need = s.rewrite_required;
   $("decisionPill").innerHTML = need
     ? `<span class="pill go">Rewrite · ${esc(s.rewrite_strategy)}</span>`
@@ -380,6 +407,7 @@ async function rewrite(){
   $("rewriteCard").scrollIntoView({behavior:"smooth", block:"start"});
 
   try{
+    cachedState.gap_experience = ($("gapInput").value || "").trim();   // user-supplied experience for gaps
     const res = await fetch("/rewrite", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(cachedState) });
     const { job_id } = await res.json();
     lastJobId = job_id;
@@ -413,6 +441,12 @@ function renderImpact(result){
   if(!cmp){ $("impactBlock").classList.add("hidden"); return; }
   $("impactAttempts").textContent = "· best of " + (result.rewrite_attempts || 1) + " attempt(s)" +
     (result.elapsed_seconds != null ? " in " + result.elapsed_seconds + "s" : "");
+  const am = cmp.ats_match || {}, ap = cmp.ats_pass || {};
+  $("scoreBoxes").innerHTML =
+    `<div class="scorebox before"><div class="lab">Original resume · ATS</div><div class="big">${pct(am.before)}%</div>` +
+    `<div class="sub">pass chance ${pct(ap.before)}%</div></div>` +
+    `<div class="scorebox after"><div class="lab">Rewritten resume · ATS</div><div class="big">${pct(am.after)}%</div>` +
+    `<div class="sub">pass chance ${pct(ap.after)}%</div></div>`;
   const ats = result.optimized_ats_match_score, pass = result.optimized_ats_pass_score;
   const verdict = (result.optimized_ats_pass_label || "").split(" - ")[0];
   $("impactHead").innerHTML = (ats != null)

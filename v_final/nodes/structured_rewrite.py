@@ -78,7 +78,7 @@ def _flat_skills(state: JobApplicationState) -> list[str]:
 
 
 def _build_prompt(state: JobApplicationState, entries: list[dict],
-                  summary: str, skills: list[str]) -> str:
+                  summary: str, skills: list[str], gap_experience: str = "") -> str:
     jd_terms = []
     for key in ("jd_skills_required", "jd_skills_preferred", "jd_keywords"):
         jd_terms.extend(state.get(key, []) or [])
@@ -94,6 +94,15 @@ def _build_prompt(state: JobApplicationState, entries: list[dict],
             exp_block.append(f"- {b}")
     n = len(entries)
 
+    gap_block = ""
+    if gap_experience:
+        gap_block = (
+            "\nUSER-PROVIDED EXPERIENCE (the candidate typed this about skills that were "
+            "missing from the resume — it is TRUE and user-supplied, so you MAY use it). "
+            "Write 1-3 factual Google-XYZ bullets strictly from it into \"added_bullets\"; "
+            "do NOT add anything the user did not state:\n" + gap_experience + "\n"
+        )
+
     return f"""
 Rewrite the candidate's resume CONTENT for this job using the Google XYZ formula
 on EVERY experience bullet: "Accomplished [X] as measured by [Y], by doing [Z]"
@@ -104,7 +113,8 @@ HARD RULES:
 2) Keep every existing number/percentage EXACTLY; rephrase around it.
 3) If a bullet has no number, still rewrite it as a strong action->result->method
    sentence; do NOT fabricate a metric.
-4) Use ONLY skills the candidate already has; reorder so job-relevant skills come first.
+4) Use ONLY skills the candidate already has (plus the USER-PROVIDED EXPERIENCE below,
+   if any); reorder skills so job-relevant ones come first.
 5) Each bullet: one sentence, <= 30 words, starts with a strong past-tense verb.
 
 TARGET JOB SKILLS (emphasis only): {", ".join(jd_terms) or "n/a"}{fb_line}
@@ -116,12 +126,13 @@ CANDIDATE SKILLS (only these may be used):
 
 CANDIDATE EXPERIENCE (rewrite the bullets of each entry; keep the same order):
 {chr(10).join(exp_block) or "(none)"}
-
+{gap_block}
 Return ONLY JSON:
 {{
   "summary": "2-3 sentence factual summary aligned to the job",
   "skills": ["skill1", "skill2"],
-  "experience": [{{"bullets": ["..."]}}]
+  "experience": [{{"bullets": ["..."]}}],
+  "added_bullets": ["XYZ bullets from USER-PROVIDED EXPERIENCE only; [] if none"]
 }}
 The "experience" array MUST have exactly {n} item(s) in the same order, each with
 the rewritten bullets for that entry.
@@ -203,9 +214,12 @@ def _assemble(state: JobApplicationState, summary: str, skills: list[str],
 
 
 def structured_rewrite_node(state: JobApplicationState) -> JobApplicationState:
-    if not state.get("rewrite_required", False):
-        # Strong fit: don't rewrite the content, but still hand back a clean,
-        # ATS-formatted resume (and .docx) assembled from the original — no LLM.
+    gap_experience = (state.get("gap_experience") or "").strip()
+    # User-supplied experience for missing skills forces a rewrite even on a strong fit.
+    needs_rewrite = bool(state.get("rewrite_required", False)) or bool(gap_experience)
+
+    if not needs_rewrite:
+        # Strong fit, no user input: don't rewrite content, just ATS-format it (no LLM).
         summary = (state.get("resume_sections") or {}).get("summary", "") or ""
         text, struct = _assemble(state, summary, _flat_skills(state), [])
         state["optimized_resume_text"] = text
@@ -220,16 +234,21 @@ def structured_rewrite_node(state: JobApplicationState) -> JobApplicationState:
     orig_skills = _flat_skills(state)
 
     sr: StructuredRewrite | None = None
-    if entries or orig_summary:
+    if entries or orig_summary or gap_experience:
         sr = get_client().chat_structured(
-            _SYSTEM, _build_prompt(state, entries, orig_summary, orig_skills),
+            _SYSTEM, _build_prompt(state, entries, orig_summary, orig_skills, gap_experience),
             StructuredRewrite, model=settings.llm.rewrite_model,
         )
 
     if sr is not None:
         summary = sr.summary or orig_summary
         skills = sr.skills or orig_skills
-        exp_bullets = [e.bullets for e in sr.experience]
+        exp_bullets = [list(e.bullets) for e in sr.experience]
+        # Bullets written from the user's supplied experience attach to the most recent role.
+        if sr.added_bullets:
+            if not exp_bullets:
+                exp_bullets = [[]]
+            exp_bullets[0] = exp_bullets[0] + list(sr.added_bullets)
         version = "rewritten"
     else:
         # Offline / failed: assemble ATS-clean resume from the original content.

@@ -148,15 +148,32 @@ def test_loop_keeps_best_candidate_and_terminates(monkeypatch):
     assert final["optimized_ats_pass_label"]
 
 
-def test_offline_reformats_without_looping():
-    """LLM disabled: structured rewrite assembles an ATS-clean resume, no loop."""
+def test_offline_reformats_and_still_scores():
+    """LLM disabled: assembles an ATS-clean resume, doesn't loop, but still scores it
+    so the UI can show a 'new ATS' box (old and new will match)."""
     final = build_rewrite_graph().invoke(dict(_LOOP_INIT))
     assert final["resume_version"] == "reformatted"
     assert final.get("rewrite_attempts", 0) == 0
-    assert "rewrite_score_comparison" not in final
-    # still produces an assembled doc + struct for export
+    assert "rewrite_score_comparison" in final          # new score always computed
+    assert "optimized_ats_match_score" in final
     assert "EXPERIENCE" in final["optimized_resume_text"]
     assert final["optimized_resume_struct"]["experience"]
+
+
+def test_gap_experience_adds_user_bullets(monkeypatch):
+    """User-supplied experience forces a rewrite and adds factual XYZ bullets."""
+    rw = StructuredRewrite(
+        experience=[RewrittenExperience(bullets=["Built Python services."])],
+        added_bullets=["Containerized 5 services with Docker on AWS ECS, cutting release time 30%."],
+    )
+    fake = _FakeStructuredClient([rw])
+    monkeypatch.setattr("v_final.nodes.structured_rewrite.get_client", lambda: fake)
+
+    init = {**_LOOP_INIT, "rewrite_required": False,   # strong fit, but user gives experience
+            "gap_experience": "I used Docker and AWS ECS to deploy 5 services."}
+    final = build_rewrite_graph().invoke(init)
+    assert final["resume_version"] == "rewritten"
+    assert "Docker on AWS ECS" in final["optimized_resume_text"]
 
 
 # ---- ATS .docx export ------------------------------------------------------
