@@ -66,8 +66,13 @@ def rewrite_loop_node(state: JobApplicationState) -> JobApplicationState:
     candidates.append({"attempt": len(candidates) + 1, **{m: cand[m] for m in _METRICS}})
     state["rewrite_candidates"] = candidates
 
-    improved = _is_better(cand, state.get("best_scores"), target, cfg.min_gain)
-    if improved:
+    # "improved" = beats the previous best (the baseline on the first attempt), so
+    # a rewrite that can't beat the original ends the loop after a single call.
+    prev_best = state.get("best_scores") or state["baseline_scores"]
+    improved = _is_better(cand, prev_best, target, cfg.min_gain)
+    # Always retain the best candidate seen, so there's an output even with no gain.
+    current_best = state.get("best_scores")
+    if current_best is None or _is_better(cand, current_best, target, cfg.min_gain):
         state["best_scores"] = {m: cand[m] for m in _METRICS}
         state["best_resume_text"] = candidate_text
 
