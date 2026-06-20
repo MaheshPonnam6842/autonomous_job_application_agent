@@ -195,7 +195,8 @@ def _assemble(state: JobApplicationState, summary: str, skills: list[str],
         lines += ["", "EXPERIENCE"]
         for e in struct_exp:
             lines.append("")
-            lines.append(e["company"])
+            if e["company"]:
+                lines.append(e["company"])
             role_line = e["role"] + (f"  |  {e['dates']}" if e["dates"] else "")
             if role_line.strip():
                 lines.append(role_line)
@@ -248,6 +249,12 @@ def structured_rewrite_node(state: JobApplicationState) -> JobApplicationState:
         exp_bullets = [list(e.bullets) for e in sr.experience]
         # Bullets written from the user's supplied experience attach to the most recent role.
         if sr.added_bullets:
+            if not (state.get("experience_entries") or []):
+                # No parsed experience to attach to — create a section so they render.
+                state["experience_entries"] = [{
+                    "company": "", "role": "Relevant Experience",
+                    "start_date": None, "end_date": None, "bullets": [],
+                }]
             if not exp_bullets:
                 exp_bullets = [[]]
             exp_bullets[0] = exp_bullets[0] + list(sr.added_bullets)
