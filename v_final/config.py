@@ -68,6 +68,9 @@ class LLMConfig:
     num_thread: int = _env_int("JOBAGENT_LLM_NUM_THREAD", 0)
     # Context window — smaller is faster; large enough for a resume + JD.
     num_ctx: int = _env_int("JOBAGENT_LLM_NUM_CTX", 4096)
+    # LLM tone-polish of outreach drafts. Off by default: the deterministic
+    # templates are good, and two extra calls are the slowest part of a run.
+    outreach_polish: bool = _env_bool("JOBAGENT_OUTREACH_POLISH", False)
 
 
 @dataclass(frozen=True)

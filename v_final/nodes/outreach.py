@@ -10,6 +10,7 @@ Writes: outreach_dm_text, outreach_email_text
 
 from __future__ import annotations
 
+from v_final.config import settings
 from v_final.llm import get_client
 from v_final.state.job_application_state import JobApplicationState
 
@@ -44,6 +45,8 @@ def _build_base_email(strong_matches: list[str]) -> str:
 
 
 def _polish(text: str) -> str:
+    if not settings.llm.outreach_polish:   # default: skip the LLM, keep it fast
+        return text
     res = get_client().chat(_POLISH_SYSTEM, text, temperature=0.3, num_predict=500)
     return res.text if (res.ok and res.text) else text  # fail-safe: keep the draft
 

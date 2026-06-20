@@ -204,7 +204,13 @@ def _assemble(state: JobApplicationState, summary: str, skills: list[str],
 
 def structured_rewrite_node(state: JobApplicationState) -> JobApplicationState:
     if not state.get("rewrite_required", False):
-        state["optimized_resume_text"] = state.get("resume_clean_text") or state.get("resume_raw_text", "")
+        # Strong fit: don't rewrite the content, but still hand back a clean,
+        # ATS-formatted resume (and .docx) assembled from the original — no LLM.
+        summary = (state.get("resume_sections") or {}).get("summary", "") or ""
+        text, struct = _assemble(state, summary, _flat_skills(state), [])
+        state["optimized_resume_text"] = text
+        state["optimized_resume_struct"] = struct
+        state["bullets_needing_metric"] = struct["bullets_needing_metric"]
         state["resume_version"] = "original"
         state["rewrite_noop"] = True
         return state
