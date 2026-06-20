@@ -18,6 +18,7 @@ import re
 from typing import Any
 
 from utils.text_normalization import _priority_dedupe, normalize_text
+from v_final.config import settings
 from v_final.llm import JDExtraction, get_client
 from v_final.state.job_application_state import JobApplicationState
 
@@ -31,37 +32,21 @@ _JD_CACHE_MAX = 64
 
 
 def _build_jd_extract_prompt(jd_text: str) -> str:
+    # Deliberately compact: only the fields scoring + rewrite need, so the model
+    # generates a short JSON and the analyze stays responsive on CPU.
     return f"""
-You are an information extraction engine for job descriptions.
-
-Return ONLY valid JSON (no markdown, no commentary).
-
-SCHEMA (must follow exactly):
+Extract job-description keywords. Return ONLY valid JSON (no prose):
 {{
   "jd_title": string,
   "domain": string,
   "seniority_level": "intern"|"junior"|"mid"|"senior"|"staff"|"principal"|"lead"|"manager"|"director"|"vp"|"unknown",
-  "skills_required": [string],
-  "skills_preferred": [string],
-  "tools_process": [string],
-  "responsibilities": [string],
-  "keywords": [string]
+  "skills_required": [string],   // must-have skills, tools, technologies
+  "skills_preferred": [string],  // nice-to-have / "a plus"
+  "keywords": [string]           // other important ATS terms
 }}
-
-CANONICALIZATION RULES (IMPORTANT):
-- All list items must be lowercase.
-- Merge synonyms into canonical short forms where obvious:
-  examples: "amazon web services"->"aws", "continuous integration"->"cicd",
-            "machine learning" stays "machine learning", "ml"->"machine learning".
-- Split compound items into atomic skills:
-  example: "networking/communication protocols" -> ["networking protocols","communication protocols"]
-- Keep "tools_process" limited to frameworks/tools/process terms:
-  examples: agile, scrum, waterfall, sdlc, jira, itil, change management, stakeholder management.
-- Put technical skills/tools (python, spark, tensorflow, kubernetes, rag, langgraph) into skills lists, NOT tools_process.
-- skills_required: must-have/minimum qualifications (or clearly required).
-- skills_preferred: preferred/nice-to-have/plus.
-- responsibilities: 6-12 verb-led action statements.
-- keywords: extra ATS terms not already included above.
+Rules: lowercase list items; split compounds (e.g. "a/b testing" stays one term,
+"networking/comm protocols" -> two); merge obvious synonyms ("amazon web services"->"aws",
+"ml"->"machine learning"). Keep each list tight (no filler). No "responsibilities" field.
 
 JOB DESCRIPTION:
 \"\"\"{jd_text}\"\"\"
@@ -97,7 +82,8 @@ def jd_ingest_node(state: JobApplicationState) -> JobApplicationState:
         return state
 
     extraction = get_client().chat_structured(
-        _SYSTEM, _build_jd_extract_prompt(jd_clean), JDExtraction, num_predict=900
+        _SYSTEM, _build_jd_extract_prompt(jd_clean), JDExtraction,
+        num_predict=350, timeout=settings.llm.analyze_timeout,
     )
     if extraction is None:
         state.setdefault("warnings", []).append(

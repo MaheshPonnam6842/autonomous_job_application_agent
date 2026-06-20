@@ -54,6 +54,9 @@ class LLMConfig:
     rewrite_model: str = _env_str("JOBAGENT_REWRITE_MODEL", "llama3.1:8b")
     embed_model: str = _env_str("JOBAGENT_EMBED_MODEL", "nomic-embed-text")
     request_timeout: float = _env_float("JOBAGENT_LLM_TIMEOUT", 120.0)
+    # Shorter cap for the JD-extraction call on the analyze path: if the model is
+    # slow, fall back to deterministic scoring instead of hanging the UI for minutes.
+    analyze_timeout: float = _env_float("JOBAGENT_ANALYZE_TIMEOUT", 60.0)
     max_retries: int = _env_int("JOBAGENT_LLM_RETRIES", 2)
     temperature: float = _env_float("JOBAGENT_LLM_TEMPERATURE", 0.2)
     # Hard kill-switch. When false, every node uses its deterministic fallback

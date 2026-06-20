@@ -27,6 +27,19 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
 analysis_graph = build_analysis_graph()
 rewrite_graph = build_rewrite_graph()
 
+
+def _warm_model():
+    """Load the model into RAM at startup so the first analyze isn't a cold load."""
+    try:
+        from v_final.llm import get_client
+        get_client().chat("Reply with ok.", "ok", num_predict=1)
+        print("[warmup] model loaded")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[warmup] skipped: {exc}")
+
+
+threading.Thread(target=_warm_model, daemon=True).start()
+
 # In-memory job store for async rewrite (single-worker deployment).
 JOBS: dict[str, dict] = {}
 

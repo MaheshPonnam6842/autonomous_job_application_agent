@@ -114,17 +114,24 @@ class OllamaClient:
         temperature: float | None = None,
         num_predict: int | None = None,
         json_mode: bool = False,
+        timeout: float | None = None,
     ) -> LLMResult:
         if not self.available():
             return LLMResult(text="", ok=False, error="llm_unavailable", fallback=True)
 
         model = model or self.cfg.chat_model
         options = self._options(temperature, num_predict)
+        # A per-call timeout (e.g. the short analyze cap) uses a dedicated client.
+        client = self.client
+        if timeout is not None:
+            import ollama
+
+            client = ollama.Client(host=self.cfg.host, timeout=timeout)
 
         last_err: str | None = None
         for attempt in range(self.cfg.max_retries + 1):
             try:
-                resp = self.client.chat(
+                resp = client.chat(
                     model=model,
                     messages=[
                         {"role": "system", "content": system},
@@ -139,6 +146,8 @@ class OllamaClient:
                 last_err = str(exc)
                 logger.warning("chat attempt %d/%d failed: %s",
                                attempt + 1, self.cfg.max_retries + 1, exc)
+                if "tim" in last_err.lower():  # timeout: retrying the same slow call won't help
+                    break
         return LLMResult(text="", ok=False, error=last_err)
 
     def chat_structured(
@@ -149,10 +158,11 @@ class OllamaClient:
         *,
         model: str | None = None,
         num_predict: int | None = None,
+        timeout: float | None = None,
     ) -> T | None:
         """Return a validated ``schema`` instance, or ``None`` on any failure."""
         res = self.chat(system, user, model=model, json_mode=True,
-                        temperature=0.1, num_predict=num_predict)
+                        temperature=0.1, num_predict=num_predict, timeout=timeout)
         if not res.ok:
             return None
         raw = _extract_json_block(res.text)
