@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual envs
+venv/
+.venv/
+env/
+
+# Local config / secrets
+.env
+
+# Uploaded resumes (personal data — keep out of git)
+uploads/*.pdf
+uploads/*.txt
+
+# Runtime output
+logs/
+artifacts/
+tests/_artifacts/
+
+# OS
+.DS_Store
+Thumbs.db

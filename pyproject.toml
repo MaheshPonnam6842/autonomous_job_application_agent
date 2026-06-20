@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autonomous-job-application-agent"
+version = "1.0.0"
+description = "LangGraph agent that analyzes a resume against a job description, scores fit, and produces scoped, factual rewrites and recruiter outreach drafts."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Mahesh Ponnam" }]
+dependencies = [
+    "langgraph>=0.0.40",
+    "ollama>=0.3.0",
+    "pydantic>=2.5",
+    "langchain-text-splitters",
+    "pypdf",
+    "python-docx",
+    "flask",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-cov",
+    "ruff>=0.5",
+    "mypy>=1.8",
+]
+
+[project.scripts]
+# Run the full agent end-to-end on the bundled sample inputs.
+jobagent = "v_final.pipeline:main"
+
+[tool.setuptools]
+# Explicit package list: the repo intentionally keeps v1_baseline and v_final
+# side by side to show the system's evolution, plus shared infra packages.
+packages = [
+    "v_final",
+    "v_final.state",
+    "v_final.nodes",
+    "v_final.graph",
+    "v_final.llm",
+    "v_final.export",
+    "utils",
+    "src",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+# v1_baseline is kept verbatim as the historical "before" snapshot; don't lint it.
+extend-exclude = ["v1_baseline", "venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_unused_ignores = true

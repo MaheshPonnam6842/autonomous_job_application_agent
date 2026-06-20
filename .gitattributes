@@ -1,0 +1,4 @@
+# Normalize line endings to LF in the repo (silences CRLF churn on Windows).
+* text=auto eol=lf
+*.png binary
+*.pdf binary

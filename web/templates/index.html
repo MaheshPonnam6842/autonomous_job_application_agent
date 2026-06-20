@@ -1,135 +1,495 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Autonomous Job Application Agent</title>
-  <style>
-    body { font-family: Arial; margin: 40px; }
-    textarea { width: 100%; height: 160px; }
-    button { padding: 10px 16px; margin-top: 10px; }
-    pre { background: #f4f4f4; padding: 12px; }
-    .hidden { display: none; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Autonomous Job Application Agent</title>
+<style>
+  :root{
+    --ink:#eafff8; --muted:#9fc8bd; --muted2:#7fb0a6;
+    --mint:#5eead4; --cyan:#22d3ee; --coral:#fca5a5; --amber:#fcd34d;
+    --glass:rgba(255,255,255,0.06); --glass-strong:rgba(255,255,255,0.10);
+    --border:rgba(255,255,255,0.15); --border-mint:rgba(94,234,212,0.34);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; color:var(--ink); font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+    background:
+      radial-gradient(1200px 620px at 12% -12%, #0d5a4d 0%, transparent 55%),
+      radial-gradient(1000px 520px at 96% 6%, #0a6f63 0%, transparent 52%),
+      linear-gradient(160deg,#04221d 0%,#062a25 45%,#04130f 100%);
+    background-attachment:fixed; min-height:100vh;
+    padding:36px clamp(16px,5vw,72px) 90px;
+  }
+  a{color:var(--mint);}
+  .wrap{max-width:1080px; margin:0 auto;}
+  header{margin-bottom:30px;}
+  .brand{display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
+  .brand h1{font-size:27px; font-weight:600; margin:0; letter-spacing:.2px;}
+  .badge{font-size:12px; padding:6px 12px; border-radius:999px; font-weight:600;
+    background:rgba(94,234,212,0.14); border:1px solid var(--border-mint); color:#bff7ea;}
+  .tagline{color:var(--muted); margin:8px 0 0; font-size:14.5px;}
+
+  .card{
+    background:var(--glass); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+    border:1px solid var(--border); border-radius:20px; padding:22px 24px;
+    box-shadow:0 22px 50px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.18);
+  }
+  .grid{display:grid; gap:20px;}
+  .meta{font-size:11.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted2); margin:0 0 10px;}
+  h2{font-size:18px; font-weight:600; margin:0 0 16px;}
+
+  label.seg{display:inline-flex; align-items:center; gap:8px; cursor:pointer; color:var(--muted);
+    padding:8px 14px; border-radius:999px; border:1px solid transparent; font-size:14px;}
+  label.seg input{accent-color:var(--mint);}
+  textarea,input[type=file]{
+    width:100%; background:rgba(2,18,15,0.55); color:var(--ink);
+    border:1px solid var(--border); border-radius:14px; padding:14px 16px; font-size:14px;
+    font-family:inherit; resize:vertical; outline:none; transition:border-color .15s, box-shadow .15s;
+  }
+  textarea{min-height:150px;}
+  textarea:focus,input[type=file]:focus{border-color:var(--border-mint); box-shadow:0 0 0 3px rgba(94,234,212,0.15);}
+  textarea::placeholder{color:#5f8a80;}
+  .hidden{display:none !important;}
+
+  .btn{
+    appearance:none; cursor:pointer; font-size:14.5px; font-weight:600; font-family:inherit;
+    padding:12px 22px; border-radius:14px; border:1px solid var(--border-mint);
+    background:rgba(94,234,212,0.12); color:#cffaf0; transition:transform .08s, box-shadow .2s, background .2s;
+  }
+  .btn:hover{background:rgba(94,234,212,0.2); box-shadow:0 0 22px rgba(45,212,191,0.35);}
+  .btn:active{transform:scale(.98);}
+  .btn:disabled{opacity:.45; cursor:not-allowed; box-shadow:none;}
+  .btn.primary{
+    background:linear-gradient(135deg,#2dd4bf,#22d3ee); color:#052b25; border-color:transparent;
+    box-shadow:0 0 26px rgba(45,212,191,0.5);
+  }
+  .btn.primary:hover{box-shadow:0 0 36px rgba(45,212,191,0.75);}
+  .actions{display:flex; gap:12px; flex-wrap:wrap; margin-top:18px;}
+
+  /* score ring (neon accent) */
+  .hero{display:grid; grid-template-columns:auto 1fr; gap:28px; align-items:center;}
+  @media(max-width:640px){.hero{grid-template-columns:1fr; justify-items:center; text-align:center;}}
+  .ring{width:168px; height:168px; border-radius:50%; display:grid; place-items:center; position:relative;
+    box-shadow:0 0 30px rgba(34,211,238,0.45);}
+  .ring::after{content:""; position:absolute; inset:15px; border-radius:50%; background:#05201b;}
+  .ring .num{position:relative; z-index:1; font-size:42px; font-weight:700; color:#9af6ff;
+    text-shadow:0 0 16px rgba(34,211,238,0.7);}
+  .ring .lab{position:relative; z-index:1; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted);}
+  .bars{display:grid; gap:14px; width:100%;}
+  .bar .top{display:flex; justify-content:space-between; font-size:13.5px; margin-bottom:6px; color:var(--muted);}
+  .bar .top b{color:var(--ink); font-weight:600;}
+  .track{height:9px; border-radius:999px; background:rgba(255,255,255,0.08); overflow:hidden;}
+  .fill{height:100%; border-radius:999px; background:linear-gradient(90deg,#2dd4bf,#22d3ee);
+    box-shadow:0 0 12px rgba(45,212,191,0.6); width:0; transition:width .9s cubic-bezier(.2,.8,.2,1);}
+
+  .chips{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{font-size:13px; padding:6px 13px; border-radius:999px; font-weight:600;
+    background:rgba(94,234,212,0.14); border:1px solid var(--border-mint); color:#aef6e6;}
+  .chip.gap{background:rgba(252,165,165,0.1); border-color:rgba(252,165,165,0.4); color:#ffd6d6;}
+  .chip.muted{background:rgba(255,255,255,0.06); border-color:var(--border); color:var(--muted);}
+
+  .duo{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:0 0 18px;}
+  @media(max-width:520px){.duo{grid-template-columns:1fr;}}
+  .scorebox{border-radius:16px; padding:16px 18px; border:1px solid var(--border); background:rgba(2,20,16,0.5);}
+  .scorebox.after{border-color:var(--border-mint); background:rgba(94,234,212,0.08);}
+  .scorebox .lab{font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted2);}
+  .scorebox .big{font-size:34px; font-weight:700; margin-top:4px;}
+  .scorebox.after .big{color:var(--mint);}
+  .scorebox .sub{font-size:12.5px; color:var(--muted); margin-top:3px;}
+
+  .pill{display:inline-flex; align-items:center; gap:8px; padding:9px 17px; border-radius:999px; font-weight:600; font-size:14px;}
+  .pill.go{background:rgba(252,211,77,0.14); border:1px solid rgba(252,211,77,0.4); color:#fde9a9;}
+  .pill.ok{background:rgba(94,234,212,0.16); border:1px solid var(--border-mint); color:#bff7ea;}
+  .reason{color:var(--muted); font-size:14px; line-height:1.6; margin:12px 0 0;}
+
+  .kv{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px;}
+  .stat{background:rgba(2,20,16,0.5); border:1px solid var(--border); border-radius:14px; padding:12px 14px;}
+  .stat .k{font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted2);}
+  .stat .v{font-size:16px; font-weight:600; margin-top:4px; word-break:break-word;}
+
+  .entry{border:1px solid var(--border); border-radius:14px; padding:14px 16px; background:rgba(2,20,16,0.4); margin-bottom:10px;}
+  .entry .row1{display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;}
+  .entry .co{font-weight:600; font-size:15px;}
+  .entry .ro{color:var(--mint); font-size:13.5px;}
+  .entry .dt{color:var(--muted2); font-size:12.5px; white-space:nowrap;}
+  .entry .bl{color:var(--muted); font-size:12.5px; margin-top:6px;}
+
+  pre.resume{white-space:pre-wrap; font-family:ui-monospace,Consolas,monospace; font-size:13px; line-height:1.6;
+    color:#d6f5ec; background:rgba(2,18,15,0.6); border:1px solid var(--border); border-radius:14px; padding:16px; margin:0;}
+  .copybtn{font-size:12px; padding:6px 12px; border-radius:10px; cursor:pointer; color:#cffaf0;
+    background:rgba(94,234,212,0.12); border:1px solid var(--border-mint);}
+  .head-row{display:flex; align-items:center; justify-content:space-between; gap:12px;}
+
+  .spinner{width:18px; height:18px; border-radius:50%; border:2.5px solid rgba(94,234,212,0.25);
+    border-top-color:var(--mint); display:inline-block; animation:spin .8s linear infinite; vertical-align:-3px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .status{color:var(--muted); font-size:14px; display:flex; align-items:center; gap:10px;}
+  .err{color:#ffb4b4;}
+  .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);}
+</style>
 </head>
 <body>
+<div class="wrap">
+  <h2 class="sr-only">Resume and job-description fit analyzer with scoped rewrite.</h2>
 
-<h2>Autonomous Job Application Agent</h2>
+  <div id="offlineBanner" class="hidden" style="margin:0 0 22px; padding:14px 18px; border-radius:14px;
+       background:rgba(252,211,77,0.12); border:1px solid rgba(252,211,77,0.4); color:#fde9a9; font-size:14px; line-height:1.6;">
+    You're viewing this page as a static file, so it can't reach the backend.
+    Run <code>python web/app.py</code> and open <b>http://localhost:5000</b> to analyze and rewrite.
+  </div>
 
-<h3>Resume Input</h3>
-<label>
-  <input type="radio" name="resume_mode" value="paste" checked>
-  Paste Resume
-</label>
-<label style="margin-left:20px;">
-  <input type="radio" name="resume_mode" value="upload">
-  Upload Resume (PDF / TXT)
-</label>
+  <header>
+    <div class="brand">
+      <h1>Autonomous Job Application Agent</h1>
+      <span class="badge">all-local · Ollama</span>
+    </div>
+    <p class="tagline">Score your resume against any job description, then generate a scoped, factual rewrite and recruiter outreach — privately, on your machine.</p>
+  </header>
 
-<div id="paste_box">
-  <textarea id="resume"></textarea>
+  <!-- INPUT -->
+  <section class="card" style="margin-bottom:22px;">
+    <p class="meta">Resume</p>
+    <div style="display:flex; gap:8px; margin-bottom:12px;">
+      <label class="seg"><input type="radio" name="resume_mode" value="paste" checked> Paste text</label>
+      <label class="seg"><input type="radio" name="resume_mode" value="upload"> Upload PDF / TXT</label>
+    </div>
+    <div id="paste_box"><textarea id="resume" placeholder="Paste your resume here…"></textarea></div>
+    <div id="upload_box" class="hidden"><input type="file" id="resume_file" accept=".pdf,.txt"></div>
+
+    <p class="meta" style="margin-top:20px;">Job description</p>
+    <textarea id="jd" placeholder="Paste the job description here…"></textarea>
+
+    <div class="actions">
+      <button class="btn primary" id="analyzeBtn" onclick="analyze()">Analyze fit</button>
+      <button class="btn" id="rewriteBtn" onclick="rewrite()" disabled>Rewrite &amp; outreach</button>
+    </div>
+    <div id="inputErr" class="err" style="margin-top:12px; font-size:14px;"></div>
+  </section>
+
+  <!-- RESULTS -->
+  <div id="results" class="grid hidden">
+
+    <div id="modeNote" class="hidden" style="padding:12px 16px; border-radius:14px; font-size:13.5px; line-height:1.6;
+         background:rgba(252,211,77,0.1); border:1px solid rgba(252,211,77,0.35); color:#fde9a9;"></div>
+
+    <section class="card">
+      <div class="hero">
+        <div style="display:grid; place-items:center; gap:8px;">
+          <div class="ring" id="ring"><div><div class="num" id="overall">—</div></div></div>
+          <div class="ring-cap meta" style="margin:0;">Overall match</div>
+          <div id="atsPass" class="hidden" style="text-align:center;"></div>
+        </div>
+        <div class="bars" id="bars"></div>
+      </div>
+    </section>
+
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));">
+      <section class="card">
+        <h2>Skill alignment</h2>
+        <p class="meta">Matched</p>
+        <div class="chips" id="matched"></div>
+        <p class="meta" style="margin-top:16px;">Gaps (in the job, not on your resume)</p>
+        <div class="chips" id="missing"></div>
+
+        <div id="gapFill" class="hidden" style="margin-top:18px;">
+          <p class="meta" id="gapLabel">Have real experience with these? Add it — we'll write factual XYZ bullets from your words</p>
+          <textarea id="gapInput" style="min-height:90px;"
+            placeholder="e.g. At BetaCorp I containerized 5 services with Docker and deployed them on AWS ECS, cutting release time by 30%."></textarea>
+          <p class="reason" style="margin-top:6px;">We turn this into XYZ bullets with a realistic number you can fine-tune — based only on what you describe. Then click <b>Rewrite &amp; outreach</b>.</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Decision</h2>
+        <div id="decisionPill"></div>
+        <p class="reason" id="reason"></p>
+      </section>
+    </div>
+
+    <section class="card">
+      <h2>Job understanding</h2>
+      <div class="kv" id="jdStats"></div>
+    </section>
+
+    <section class="card">
+      <h2>Resume structure</h2>
+      <p class="meta">Experience</p>
+      <div id="exp"></div>
+      <div class="kv" id="structCounts" style="margin-top:14px;"></div>
+    </section>
+
+    <!-- REWRITE OUTPUT -->
+    <section class="card hidden" id="rewriteCard">
+      <div class="head-row" style="margin-bottom:14px;">
+        <h2 style="margin:0;">Optimized resume</h2>
+        <div style="display:flex; gap:8px;">
+          <button class="copybtn" id="downloadBtn" onclick="downloadDocx()" style="display:none;">⬇ Download .docx</button>
+          <button class="copybtn" onclick="copyText('resumeOut')">Copy</button>
+        </div>
+      </div>
+      <div id="rewriteStatus" class="status"></div>
+      <div id="metricNote" class="hidden" style="margin:0 0 14px; padding:11px 15px; border-radius:12px; font-size:13.5px; line-height:1.6;
+           background:rgba(252,211,77,0.1); border:1px solid rgba(252,211,77,0.32); color:#fde9a9;"></div>
+
+      <div id="impactBlock" class="hidden" style="margin:2px 0 18px;">
+        <p class="meta">ATS impact <span id="impactAttempts" style="text-transform:none; letter-spacing:0; color:var(--muted);"></span></p>
+        <div class="duo" id="scoreBoxes"></div>
+        <div id="impactHead" style="font-size:15px; margin:0 0 14px; color:var(--muted);"></div>
+        <div class="bars" id="impactBars"></div>
+      </div>
+
+      <pre class="resume hidden" id="resumeOut"></pre>
+
+      <div class="grid hidden" id="outreachBlock" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); margin-top:18px;">
+        <div>
+          <div class="head-row"><p class="meta" style="margin:0;">Recruiter DM</p><button class="copybtn" onclick="copyText('dmOut')">Copy</button></div>
+          <pre class="resume" id="dmOut" style="margin-top:8px;"></pre>
+        </div>
+        <div>
+          <div class="head-row"><p class="meta" style="margin:0;">Follow-up email</p><button class="copybtn" onclick="copyText('emailOut')">Copy</button></div>
+          <pre class="resume" id="emailOut" style="margin-top:8px;"></pre>
+        </div>
+      </div>
+    </section>
+  </div>
 </div>
-
-<div id="upload_box" class="hidden">
-  <input type="file" id="resume_file">
-</div>
-
-<h3>Job Description</h3>
-<textarea id="jd"></textarea>
-
-<br>
-<button onclick="analyze()">Analyze</button>
-<button onclick="rewrite()">Rewrite Resume</button>
-
-<h3>Analysis</h3>
-<pre id="analysis"></pre>
-
-<h3>Rewrite Output</h3>
-<pre id="rewrite_output"></pre>
 
 <script>
 let cachedState = null;
+let lastJobId = null;
+const $ = id => document.getElementById(id);
+const pct = x => Math.round((Number(x) || 0) * 100);
+const esc = s => (s ?? "").toString().replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const servedByBackend = () => location.protocol === "http:" || location.protocol === "https:";
+const NOT_SERVED_MSG = "This page isn't served by the backend. Run python web/app.py and open http://localhost:5000.";
 
-// Toggle resume input
+if(!servedByBackend()){ $("offlineBanner").classList.remove("hidden"); }
+
 document.querySelectorAll("input[name='resume_mode']").forEach(r => {
   r.addEventListener("change", () => {
     const mode = document.querySelector("input[name='resume_mode']:checked").value;
-    document.getElementById("paste_box").classList.toggle("hidden", mode !== "paste");
-    document.getElementById("upload_box").classList.toggle("hidden", mode !== "upload");
+    $("paste_box").classList.toggle("hidden", mode !== "paste");
+    $("upload_box").classList.toggle("hidden", mode !== "upload");
   });
 });
 
-function disableButtons(disabled) {
-  document.querySelectorAll("button").forEach(b => b.disabled = disabled);
-}
+function setBusy(b){ $("analyzeBtn").disabled = b; $("rewriteBtn").disabled = b || !cachedState; }
 
-async function analyze() {
-  disableButtons(true);
-
-  const jd = document.getElementById("jd").value;
+async function analyze(){
+  $("inputErr").textContent = "";
+  if(!servedByBackend()){ $("offlineBanner").classList.remove("hidden"); $("inputErr").textContent = NOT_SERVED_MSG; return; }
+  const jd = $("jd").value.trim();
+  if(!jd){ $("inputErr").textContent = "Add a job description first."; return; }
   const mode = document.querySelector("input[name='resume_mode']:checked").value;
 
-  let formData = new FormData();
-  formData.append("jd_text", jd);
-  formData.append("mode", mode);
-
-  if (mode === "paste") {
-    formData.append("resume_text", document.getElementById("resume").value);
+  const fd = new FormData();
+  fd.append("jd_text", jd); fd.append("mode", mode);
+  if(mode === "paste"){
+    fd.append("resume_text", $("resume").value);
   } else {
-    const file = document.getElementById("resume_file").files[0];
-    if (!file) {
-      alert("Upload a resume file");
-      disableButtons(false);
-      return;
-    }
-    formData.append("resume_file", file);
+    const f = $("resume_file").files[0];
+    if(!f){ $("inputErr").textContent = "Choose a resume file to upload."; return; }
+    fd.append("resume_file", f);
   }
 
-  const res = await fetch("/analyze", { method: "POST", body: formData });
-  const data = await res.json();
-
-  cachedState = data.__state__;
-  document.getElementById("analysis").textContent =
-    JSON.stringify(data, null, 2);
-
-  disableButtons(false);
+  setBusy(true); $("analyzeBtn").innerHTML = '<span class="spinner"></span> Analyzing…';
+  try{
+    const res = await fetch("/analyze", { method:"POST", body:fd });
+    const data = await res.json();
+    if(!res.ok){ $("inputErr").textContent = data.error || "Analysis failed."; return; }
+    cachedState = data.__state__;
+    render(cachedState);
+    $("results").classList.remove("hidden");
+    $("results").scrollIntoView({behavior:"smooth", block:"start"});
+  } catch(e){ $("inputErr").textContent = "Network error: " + e.message; }
+  finally{ setBusy(false); $("analyzeBtn").textContent = "Analyze fit"; }
 }
 
-async function rewrite() {
-  if (!cachedState) {
-    alert("Run analysis first");
-    return;
+function render(s){
+  const overall = pct(s.overall_match_score);
+  $("overall").textContent = overall + "%";
+  $("ring").style.background =
+    `conic-gradient(#22d3ee 0 ${overall}%, rgba(45,212,191,0.12) ${overall}% 100%)`;
+
+  const sb = s.score_breakdown || {};
+  const rows = [
+    ["Skill coverage", sb.skill_match ?? s.skill_match_score],
+    ["Semantic similarity", sb.semantic_similarity ?? s.semantic_similarity_score],
+    ["ATS keywords", sb.ats_match ?? s.ats_match_score],
+  ];
+  $("bars").innerHTML = rows.map(([k,v]) =>
+    `<div class="bar"><div class="top"><span>${k}</span><b>${pct(v)}%</b></div>
+     <div class="track"><div class="fill" data-w="${pct(v)}"></div></div></div>`).join("");
+  requestAnimationFrame(() => document.querySelectorAll(".fill").forEach(f => f.style.width = f.dataset.w + "%"));
+
+  if(s.ats_pass_score != null){
+    const cls = s.ats_pass_score >= 0.55 ? "ok" : "go";
+    const verdict = (s.ats_pass_label || "").split(" - ")[0];
+    $("atsPass").innerHTML = `<span class="pill ${cls}" style="margin-top:6px;">ATS pass · ${pct(s.ats_pass_score)}% · ${esc(verdict)}</span>`;
+    $("atsPass").classList.remove("hidden");
+  } else { $("atsPass").classList.add("hidden"); }
+
+  const matched = s.matched_skills || [];
+  $("matched").innerHTML = matched.length
+    ? matched.map(x => `<span class="chip">${esc(x)}</span>`).join("")
+    : `<span class="chip muted">none detected</span>`;
+  const gapSet = new Set(s.missing_required_skills || []);
+  for(const cat in (s.skill_gap_hard || {})) (s.skill_gap_hard[cat] || []).forEach(x => gapSet.add(x));
+  for(const cat in (s.skill_gap_soft || {})) (s.skill_gap_soft[cat] || []).forEach(x => gapSet.add(x));
+  const gaps = [...gapSet];
+  $("missing").innerHTML = gaps.length
+    ? gaps.map(x => `<span class="chip gap">${esc(x)}</span>`).join("")
+    : `<span class="chip">none — your resume covers every JD skill detected</span>`;
+
+  // Gap-fill: when required/hard skills are missing, invite the user to supply real experience
+  const hardGaps = [];
+  for(const cat in (s.skill_gap_hard || {})) (s.skill_gap_hard[cat] || []).forEach(x => hardGaps.push(x));
+  const gapKeywords = (s.missing_ats_keywords && s.missing_ats_keywords.length)
+    ? s.missing_ats_keywords
+    : [...new Set([...(s.missing_required_skills || []), ...hardGaps])];
+  if(gapKeywords.length){
+    $("gapLabel").innerHTML = "These JD keywords are missing from your resume: <b>" +
+      gapKeywords.slice(0,12).map(esc).join(", ") + "</b>.<br>Did you do any of this in your experience? " +
+      "Tell me what you did, and I'll turn it into a Google-XYZ bullet with a realistic number you can adjust.";
+    $("gapFill").classList.remove("hidden");
+  } else { $("gapFill").classList.add("hidden"); }
+
+  const need = s.rewrite_required;
+  $("decisionPill").innerHTML = need
+    ? `<span class="pill go">Rewrite · ${esc(s.rewrite_strategy)}</span>`
+    : `<span class="pill ok">Strong fit · no rewrite needed</span>`;
+  $("reason").textContent = s.rewrite_reason || "";
+
+  $("jdStats").innerHTML = [
+    ["Title", s.jd_title || "—"],
+    ["Domain", s.jd_domain || "—"],
+    ["Seniority", s.jd_seniority_level || "—"],
+    ["Required skills", (s.jd_skills_required || []).slice(0,6).join(", ") || "—"],
+  ].map(([k,v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${esc(v)}</div></div>`).join("");
+
+  const exp = s.experience_entries || [];
+  $("exp").innerHTML = exp.length ? exp.map(e =>
+    `<div class="entry"><div class="row1">
+       <div><span class="co">${esc(e.company || "—")}</span> · <span class="ro">${esc(e.role || "")}</span></div>
+       <span class="dt">${esc([e.start_date,e.end_date].filter(Boolean).join(" – "))}</span>
+     </div><div class="bl">${(e.bullets||[]).length} bullet${(e.bullets||[]).length===1?"":"s"}</div></div>`).join("")
+    : `<span class="chip muted">no experience parsed</span>`;
+  $("structCounts").innerHTML = [
+    ["Experience", exp.length],
+    ["Projects", (s.project_entries||[]).length],
+    ["Education", (s.education_entries||[]).length],
+  ].map(([k,v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+
+  const offline = (s.warnings || []).some(w => String(w).includes("llm_unavailable"));
+  const note = $("modeNote");
+  if(offline){
+    note.innerHTML = "Offline mode (Ollama not reached): JD title, ATS keyword score, and the rewrite are disabled. " +
+      "Skill coverage, semantic similarity, gaps and structure below are computed deterministically. " +
+      "Start Ollama and reload for the full analysis.";
+    note.classList.remove("hidden");
+  } else {
+    note.classList.add("hidden");
   }
 
-  disableButtons(true);
-  document.getElementById("rewrite_output").textContent = "Rewriting resume...";
+  $("rewriteCard").classList.add("hidden");
+  setBusy(false);
+}
 
-  const res = await fetch("/rewrite", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(cachedState)
-  });
+async function rewrite(){
+  if(!cachedState){ return; }
+  if(!servedByBackend()){ $("offlineBanner").classList.remove("hidden"); return; }
+  setBusy(true); $("rewriteBtn").innerHTML = '<span class="spinner"></span> Working…';
+  $("rewriteCard").classList.remove("hidden");
+  $("resumeOut").classList.add("hidden");
+  $("outreachBlock").classList.add("hidden");
+  $("impactBlock").classList.add("hidden");
+  $("downloadBtn").style.display = "none";
+  $("metricNote").classList.add("hidden");
+  $("rewriteStatus").innerHTML = '<span class="spinner"></span> Generating scoped rewrite and outreach…';
+  $("rewriteCard").scrollIntoView({behavior:"smooth", block:"start"});
 
-  const { job_id } = await res.json();
+  try{
+    cachedState.gap_experience = ($("gapInput").value || "").trim();   // user-supplied experience for gaps
+    const res = await fetch("/rewrite", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(cachedState) });
+    const { job_id } = await res.json();
+    lastJobId = job_id;
+    if(!job_id){ $("rewriteStatus").innerHTML = '<span class="err">Rewrite did not start — try again.</span>'; finishRewrite(); return; }
+    const poll = setInterval(async () => {
+      const r = await fetch(`/rewrite/status/${job_id}`);
+      if(!r.ok){ clearInterval(poll); $("rewriteStatus").innerHTML = '<span class="err">Lost the rewrite job — reload and retry.</span>'; finishRewrite(); return; }
+      const d = await r.json();
+      if(d.status === "done"){
+        clearInterval(poll);
+        $("rewriteStatus").innerHTML = "";
+        $("resumeOut").textContent = d.result.optimized_resume_text || "(no output)";
+        $("resumeOut").classList.remove("hidden");
+        renderImpact(d.result);
+        renderDownloadAndMetrics(d.result);
+        $("dmOut").textContent = d.result.outreach_dm_text || "";
+        $("emailOut").textContent = d.result.outreach_email_text || "";
+        $("outreachBlock").classList.remove("hidden");
+        finishRewrite();
+      } else if(d.status === "error"){
+        clearInterval(poll);
+        $("rewriteStatus").innerHTML = '<span class="err">Rewrite failed: ' + esc(d.error||"") + '</span>';
+        finishRewrite();
+      }
+    }, 1500);
+  } catch(e){
+    $("rewriteStatus").innerHTML = '<span class="err">Network error: ' + esc(e.message) + '</span>';
+    finishRewrite();
+  }
+}
+function renderImpact(result){
+  const cmp = result.rewrite_score_comparison;
+  if(!cmp){ $("impactBlock").classList.add("hidden"); return; }
+  $("impactAttempts").textContent = "· best of " + (result.rewrite_attempts || 1) + " attempt(s)" +
+    (result.elapsed_seconds != null ? " in " + result.elapsed_seconds + "s" : "");
+  const am = cmp.ats_match || {}, ap = cmp.ats_pass || {};
+  $("scoreBoxes").innerHTML =
+    `<div class="scorebox before"><div class="lab">Original resume · ATS</div><div class="big">${pct(am.before)}%</div>` +
+    `<div class="sub">pass chance ${pct(ap.before)}%</div></div>` +
+    `<div class="scorebox after"><div class="lab">Rewritten resume · ATS</div><div class="big">${pct(am.after)}%</div>` +
+    `<div class="sub">pass chance ${pct(ap.after)}%</div></div>`;
+  const ats = result.optimized_ats_match_score, pass = result.optimized_ats_pass_score;
+  const verdict = (result.optimized_ats_pass_label || "").split(" - ")[0];
+  $("impactHead").innerHTML = (ats != null)
+    ? `Rewritten resume — ATS <b>${pct(ats)}%</b> · pass chance <b>${pct(pass)}%</b> <span style="color:var(--muted)">(${esc(verdict)})</span>`
+    : "";
+  const order = [["ATS keywords","ats_match"],["ATS pass chance","ats_pass"],["Overall match","overall"],
+                 ["Skill coverage","skill_match"],["Semantic","semantic_similarity"]];
+  $("impactBars").innerHTML = order.map(([label,key]) => {
+    const c = cmp[key]; if(!c) return "";
+    const before = pct(c.before), after = pct(c.after), delta = Math.round((c.delta||0)*100);
+    const sign = delta > 0 ? "+" : "";
+    const dcol = delta > 0 ? "var(--mint)" : (delta < 0 ? "var(--coral)" : "var(--muted)");
+    return `<div class="bar"><div class="top"><span>${label}</span>
+      <b>${before}% → ${after}% <span style="color:${dcol}">(${sign}${delta}%)</span></b></div>
+      <div class="track"><div class="fill" style="width:${after}%"></div></div></div>`;
+  }).join("");
+  $("impactBlock").classList.remove("hidden");
+}
 
-  const poll = setInterval(async () => {
-    const r = await fetch(`/rewrite/status/${job_id}`);
-    const data = await r.json();
+function renderDownloadAndMetrics(result){
+  $("downloadBtn").style.display = result.docx_available ? "" : "none";
+  const need = result.bullets_needing_metric || [];
+  if(need.length){
+    const sample = need.slice(0,3).map(b => "• " + esc(b)).join("<br>");
+    $("metricNote").innerHTML = `<b>${need.length} bullet(s) have no metric.</b> For a complete XYZ bullet, add a number ` +
+      `(%, $, count, time saved). The agent won't invent one. Examples to quantify:<br>${sample}`;
+    $("metricNote").classList.remove("hidden");
+  } else { $("metricNote").classList.add("hidden"); }
+}
 
-    if (data.status === "done") {
-      clearInterval(poll);
-      document.getElementById("rewrite_output").textContent =
-        data.result.optimized_resume_text;
-      disableButtons(false);
-    }
+function downloadDocx(){ if(lastJobId) window.open("/download/" + lastJobId, "_blank"); }
 
-    if (data.status === "error") {
-      clearInterval(poll);
-      document.getElementById("rewrite_output").textContent =
-        "Rewrite failed.";
-      disableButtons(false);
-    }
-  }, 1500);
+function finishRewrite(){ setBusy(false); $("rewriteBtn").textContent = "Rewrite & outreach"; }
+
+function copyText(id){
+  const t = $(id).textContent;
+  navigator.clipboard?.writeText(t);
 }
 </script>
-
 </body>
 </html>

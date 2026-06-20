@@ -1,0 +1,37 @@
+# Local stack: the agent's web app + a local Ollama server.
+#
+#   docker compose up --build
+#   docker compose exec ollama ollama pull llama3.1:8b
+#   docker compose exec ollama ollama pull nomic-embed-text   # optional, enables semantic score
+#   open http://localhost:5000
+#
+# The app degrades gracefully if models aren't pulled yet (analysis still runs).
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: jobagent-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: jobagent-app
+    ports:
+      - "5000:5000"
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      JOBAGENT_ARTIFACTS_DIR: /app/artifacts
+    volumes:
+      - ./artifacts:/app/artifacts
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+volumes:
+  ollama_models:
