@@ -1,5 +1,6 @@
 import os
 import threading
+import time
 import uuid
 
 from flask import Flask, jsonify, render_template, request, send_file
@@ -107,7 +108,9 @@ def rewrite():
     def run_rewrite():
         try:
             print(f"[JOB {job_id}] Rewrite started")
+            t0 = time.perf_counter()
             result = rewrite_graph.invoke(state)
+            elapsed = round(time.perf_counter() - t0, 1)
 
             # Build the ATS-safe .docx from the structured resume.
             docx_path = None
@@ -133,6 +136,7 @@ def rewrite():
                     "resume_version": result.get("resume_version"),
                     "bullets_needing_metric": result.get("bullets_needing_metric") or [],
                     "docx_available": bool(docx_path),
+                    "elapsed_seconds": elapsed,
                 },
             }
             print(f"[JOB {job_id}] Rewrite completed (docx={bool(docx_path)})")

@@ -411,7 +411,8 @@ async function rewrite(){
 function renderImpact(result){
   const cmp = result.rewrite_score_comparison;
   if(!cmp){ $("impactBlock").classList.add("hidden"); return; }
-  $("impactAttempts").textContent = "· best of " + (result.rewrite_attempts || 1) + " attempt(s)";
+  $("impactAttempts").textContent = "· best of " + (result.rewrite_attempts || 1) + " attempt(s)" +
+    (result.elapsed_seconds != null ? " in " + result.elapsed_seconds + "s" : "");
   const ats = result.optimized_ats_match_score, pass = result.optimized_ats_pass_score;
   const verdict = (result.optimized_ats_pass_label || "").split(" - ")[0];
   $("impactHead").innerHTML = (ats != null)

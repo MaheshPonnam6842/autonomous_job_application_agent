@@ -98,9 +98,15 @@ def rewrite_loop_node(state: JobApplicationState) -> JobApplicationState:
 
 def improve_router(state: JobApplicationState) -> str:
     """retry while improving and under the attempt cap; otherwise done."""
+    cfg = settings.rewrite
     if state.get("resume_version") != "rewritten":
         return "done"
-    if int(state.get("rewrite_attempts", 0)) >= settings.rewrite.max_attempts:
+    if int(state.get("rewrite_attempts", 0)) >= cfg.max_attempts:
+        return "done"
+    # Good-enough short-circuit: don't spend another LLM call if already strong.
+    best = state.get("best_scores") or {}
+    target = cfg.target_metric if cfg.target_metric in best else "ats_match"
+    if best.get(target, 0.0) >= cfg.target_threshold:
         return "done"
     if not state.get("rewrite_improved", False):
         return "done"

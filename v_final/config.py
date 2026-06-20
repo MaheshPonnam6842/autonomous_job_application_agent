@@ -60,6 +60,15 @@ class LLMConfig:
     # and never touches the network — useful for tests and offline demos.
     enabled: bool = _env_bool("JOBAGENT_LLM_ENABLED", True)
 
+    # --- Performance (local CPU inference) ---
+    # Keep the model resident in RAM between calls so the loop's repeated calls
+    # don't pay the cold-load cost each time.
+    keep_alive: str = _env_str("JOBAGENT_LLM_KEEP_ALIVE", "10m")
+    # CPU threads for inference; 0 lets Ollama auto-detect all cores.
+    num_thread: int = _env_int("JOBAGENT_LLM_NUM_THREAD", 0)
+    # Context window — smaller is faster; large enough for a resume + JD.
+    num_ctx: int = _env_int("JOBAGENT_LLM_NUM_CTX", 4096)
+
 
 @dataclass(frozen=True)
 class ScoringConfig:
@@ -95,11 +104,15 @@ class RewriteConfig:
 
     # How many rewrite attempts to make (each is one LLM call). The loop keeps the
     # best-scoring candidate and stops early once an attempt fails to improve it.
-    max_attempts: int = _env_int("JOBAGENT_REWRITE_MAX_ATTEMPTS", 3)
+    # Default 2 to stay fast on CPU; raise for more polish.
+    max_attempts: int = _env_int("JOBAGENT_REWRITE_MAX_ATTEMPTS", 2)
     # Which score to optimize. Tie broken by overall_match.
     target_metric: str = _env_str("JOBAGENT_REWRITE_TARGET", "ats_match")
     # Minimum improvement over the current best to count as progress.
     min_gain: float = _env_float("JOBAGENT_REWRITE_MIN_GAIN", 0.0)
+    # "Good enough" short-circuit: stop retrying once the target metric hits this,
+    # even if attempts remain — saves expensive LLM calls when already strong.
+    target_threshold: float = _env_float("JOBAGENT_REWRITE_TARGET_THRESHOLD", 0.9)
 
 
 @dataclass(frozen=True)

@@ -52,10 +52,42 @@ def test_is_better_keeps_higher_target_then_overall():
 
 
 def test_router_stops_on_cap_convergence_and_failure():
-    assert improve_router({"resume_version": "rewritten", "rewrite_attempts": 1, "rewrite_improved": True}) == "retry"
-    assert improve_router({"resume_version": "rewritten", "rewrite_attempts": 99, "rewrite_improved": True}) == "done"
-    assert improve_router({"resume_version": "rewritten", "rewrite_attempts": 1, "rewrite_improved": False}) == "done"
-    assert improve_router({"resume_version": "rewrite_failed_fallback", "rewrite_attempts": 0}) == "done"
+    base = {"best_scores": {"ats_match": 0.5, "overall": 0.5}}
+    assert improve_router({**base, "resume_version": "rewritten", "rewrite_attempts": 1, "rewrite_improved": True}) == "retry"
+    assert improve_router({**base, "resume_version": "rewritten", "rewrite_attempts": 99, "rewrite_improved": True}) == "done"
+    assert improve_router({**base, "resume_version": "rewritten", "rewrite_attempts": 1, "rewrite_improved": False}) == "done"
+    assert improve_router({"resume_version": "reformatted", "rewrite_attempts": 0}) == "done"
+
+
+def test_router_early_exits_when_strong_enough():
+    from v_final.config import settings
+    thr = settings.rewrite.target_threshold
+    strong = {"resume_version": "rewritten", "rewrite_attempts": 1, "rewrite_improved": True,
+              "best_scores": {"ats_match": thr, "overall": 0.9}}
+    assert improve_router(strong) == "done"           # good enough -> save an LLM call
+    weak = {**strong, "best_scores": {"ats_match": thr - 0.3, "overall": 0.5}}
+    assert improve_router(weak) == "retry"
+
+
+def test_embedding_is_memoized(monkeypatch):
+    from v_final.llm.client import OllamaClient
+
+    calls = {"n": 0}
+
+    class _FakeOllama:
+        def embeddings(self, model, prompt, keep_alive=None):
+            calls["n"] += 1
+            return {"embedding": [0.1, 0.2, 0.3]}
+
+    c = OllamaClient()
+    monkeypatch.setattr(c, "available", lambda force=False: True)
+    c._client = _FakeOllama()
+
+    assert c.embed("same text") == [0.1, 0.2, 0.3]
+    assert c.embed("same text") == [0.1, 0.2, 0.3]
+    assert calls["n"] == 1                # second call served from cache
+    c.embed("different text")
+    assert calls["n"] == 2                # new content -> one more embed
 
 
 # ---- full loop with a fake structured-rewrite LLM --------------------------
@@ -101,8 +133,9 @@ def test_loop_keeps_best_candidate_and_terminates(monkeypatch):
 
     final = build_rewrite_graph().invoke(dict(_LOOP_INIT))
 
-    assert final["rewrite_attempts"] == 3
-    assert len(final["rewrite_candidates"]) == 3
+    # default cap is 2 attempts; the best (2nd) candidate is reached and kept
+    assert final["rewrite_attempts"] == 2
+    assert len(final["rewrite_candidates"]) == 2
     # best candidate (more keywords) is kept and assembled into the output + struct
     assert "aws" in final["optimized_resume_text"] and "docker" in final["optimized_resume_text"]
     assert final["optimized_resume_struct"]["experience"]

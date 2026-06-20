@@ -6,12 +6,14 @@ Design goals:
   deterministic behavior when ``ok`` is False.
 - **Validated structured output.** :meth:`chat_structured` returns a parsed,
   schema-validated Pydantic object or ``None`` — no raw-JSON handling in nodes.
-- **Cheap availability probing,** cached so a missing server doesn't add latency
-  to every node in a run.
+- **Fast on local CPU.** Embeddings are memoized (the JD is embedded once per
+  run, not on every loop rescore), the model is kept warm between calls via
+  ``keep_alive``, and ``num_thread`` / ``num_ctx`` are tunable.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
@@ -54,6 +56,7 @@ class OllamaClient:
         self.cfg = cfg or settings.llm
         self._client = None
         self._available: bool | None = None  # tri-state cache
+        self._embed_cache: dict[str, list[float]] = {}  # memoized embeddings
 
     @property
     def client(self):  # lazy import so the package loads without ollama installed
@@ -87,6 +90,18 @@ class OllamaClient:
             msg = getattr(resp, "message", None)
             return getattr(msg, "content", "") if msg is not None else ""
 
+    def _options(self, temperature: float | None, num_predict: int | None) -> dict[str, object]:
+        opts: dict[str, object] = {
+            "temperature": self.cfg.temperature if temperature is None else temperature,
+            "top_p": 0.9,
+            "num_ctx": self.cfg.num_ctx,
+        }
+        if self.cfg.num_thread > 0:
+            opts["num_thread"] = self.cfg.num_thread
+        if num_predict is not None:
+            opts["num_predict"] = num_predict
+        return opts
+
     def chat(
         self,
         system: str,
@@ -101,12 +116,7 @@ class OllamaClient:
             return LLMResult(text="", ok=False, error="llm_unavailable", fallback=True)
 
         model = model or self.cfg.chat_model
-        options: dict[str, object] = {
-            "temperature": self.cfg.temperature if temperature is None else temperature,
-            "top_p": 0.9,
-        }
-        if num_predict is not None:
-            options["num_predict"] = num_predict
+        options = self._options(temperature, num_predict)
 
         last_err: str | None = None
         for attempt in range(self.cfg.max_retries + 1):
@@ -119,6 +129,7 @@ class OllamaClient:
                     ],
                     options=options,
                     format="json" if json_mode else "",
+                    keep_alive=self.cfg.keep_alive,
                 )
                 return LLMResult(text=self._content(resp).strip(), ok=True)
             except Exception as exc:  # noqa: BLE001
@@ -154,24 +165,39 @@ class OllamaClient:
             return None
 
     def embed(self, text: str, *, model: str | None = None) -> list[float] | None:
-        """Return an embedding vector, or ``None`` if embeddings are unavailable."""
+        """Return an embedding vector, or ``None`` if embeddings are unavailable.
+
+        Memoized by (model, content hash): the same text — e.g. the JD across
+        every loop rescore — is embedded exactly once per process.
+        """
         if not self.available() or not text.strip():
             return None
         model = model or self.cfg.embed_model
+        key = f"{model}:{hashlib.md5(text.encode('utf-8')).hexdigest()}"
+        cached = self._embed_cache.get(key)
+        if cached is not None:
+            return cached
         try:
-            resp = self.client.embeddings(model=model, prompt=text)
+            try:
+                resp = self.client.embeddings(model=model, prompt=text, keep_alive=self.cfg.keep_alive)
+            except TypeError:  # older ollama without keep_alive kwarg
+                resp = self.client.embeddings(model=model, prompt=text)
             emb = resp["embedding"] if isinstance(resp, dict) else getattr(resp, "embedding", None)
-            return [float(x) for x in emb] if emb else None
+            vec = [float(x) for x in emb] if emb else None
         except Exception as exc:  # noqa: BLE001
             logger.warning("embeddings failed (%s); semantic score will use lexical fallback", exc)
             return None
+        if vec is not None:
+            self._embed_cache[key] = vec
+        return vec
 
 
 _default_client: OllamaClient | None = None
 
 
 def get_client() -> OllamaClient:
-    """Process-wide singleton so availability is probed once per run."""
+    """Process-wide singleton so availability is probed once and the embedding
+    cache is shared across every node in a run."""
     global _default_client
     if _default_client is None:
         _default_client = OllamaClient()
